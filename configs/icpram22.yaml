@@ -1,0 +1,12 @@
+objective: MLM
+results_dir: results/icpram22
+template_file: data/multi_attr_MLM_large.yaml
+target_words: data/professions_v2.json
+random_seed: 42
+batch_size: 8
+pretrained_model: bert-base-uncased
+epochs: 5
+iterations: 5
+minP: [0.05, 0.1, 0.15, 0.2]
+maxP: [0.8, 0.85, 0.9, 0.95]
+add_wiki_sent: False
