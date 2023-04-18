@@ -214,12 +214,12 @@ def report_bias_scores(bert, defining_emb, masked_texts, attr_label, target_labe
             if score_name_short in ['SAME', 'WEAT', 'MAC', 'DirectBias', 'RIPA']:
                 for i, target in enumerate(sel_targets):
                     if score_name == "SAME":
+                        pair_biases = score.individual_bias_per_pair(sel_emb[i])
                         pair_biases_by_target_group[protected_groups[attr_key][0]][target].append(0)
                         for j in range(1, len(protected_groups[attr_key])):
-                            pair_biases_by_target_group[protected_groups[attr_key][j]][target].append(
-                                score.individual_bias_per_pair(sel_emb[i]))
+                            pair_biases_by_target_group[protected_groups[attr_key][j]][target].append(pair_biases[j-1])
                     if score_name == 'SAME' and len(embeddings) == 2:
-                        biases_by_target_attr[score_name][attr_key][target].append(score.pair_bias(sel_emb[i], score.pairs[0]))
+                        biases_by_target_attr[score_name][attr_key][target].append(score.signed_individual_bias(sel_emb[i]))
                     else:
                         biases_by_target_attr[score_name][attr_key][target].append(score.individual_bias(sel_emb[i]))
 
@@ -392,6 +392,10 @@ def data_model_bias_corr(stat_path, df_task):
     if not df.shape == df_task.shape:
         print("shape mismatch for logged training biases and pretrain biases")
         print(df.shape, "vs. ", df_task.shape)
+        print("pre-training statistics:")
+        print(df)
+        print("biases after training:")
+        print(df_task)
 
     for i in range(df.shape[1]):
         if df.columns[i] == 'Unnamed: 0':
