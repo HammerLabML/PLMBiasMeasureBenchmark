@@ -283,6 +283,7 @@ def unmasking_bias_multi_attr(bert, template_config, target_words, groups):
         for target in target_words:
             probs_by_target_group[group].update({target: []})
 
+    # TODO: use a dataloader to improve performance
     if torch.cuda.is_available():
         unmasker = pipeline('fill-mask', model=bert.model, tokenizer=bert.tokenizer, device=0)
     else:
@@ -390,6 +391,8 @@ def data_model_bias_corr(stat_path, df_task):
     all_pretrain_bias = []
 
     if not df.shape == df_task.shape:
+        # this happens if one dataframe was loaded from csv and contains an 'unnamed: 0' column
+        # with the targets
         print("shape mismatch for logged training biases and pretrain biases")
         print(df.shape, "vs. ", df_task.shape)
         print("pre-training statistics:")
@@ -579,7 +582,8 @@ def run(config, min_iter=0, max_iter=-1):
                     last_r_value = -1
                     it = 0
                     while r_value < 0.85 and it < training_iterations:
-                        if config['objective'] == 'MLM_lazy':
+                        if config['objective'] == 'MLM_lazy':  # TODO: this is deprecated
+                            print("warning: MLM_lazy objective is deprecated")
                             bert = BertHuggingfaceMLM(model_name=config['pretrained_model'],
                                                       batch_size=config['batch_size'])
                             losses = bert.retrain(X_train, X_train, epochs=config['epochs'], insert_masks=True)
