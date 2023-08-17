@@ -30,8 +30,11 @@ def init(config):
         lm = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
         # test unmasking/ ground truth bias score
         # TODO: update these
-        pll = PLLBias(lm.model, lm.tokenizer)
-        pll.PLL_compare_sent("hello you", "hello u")
+        pll = PLLBias(lm.model, lm.tokenizer, batch_size=config['batch_size'])
+
+        sent1 = ['how are u', 'hello u', 'hey u']
+        sent2 = ['how are you', 'hello you', 'hey you']
+        pll.compare_sentence_likelihood(sent1, sent2)
 
         lm.embed(["test"])
     else:
