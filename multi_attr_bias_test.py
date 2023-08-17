@@ -2,7 +2,6 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
-import random
 import scipy
 import yaml
 import getopt
@@ -10,63 +9,14 @@ import sys
 
 import torch
 from transformers import pipeline
-from utils import create_bias_distribution, check_config
+from utils import create_bias_distribution, check_config, check_attribute_occurence, create_masked_dataset
 from embedding import BertHuggingfaceMLM, BertHuggingface
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, RIPA, MAC
 from lipstick_bias import BiasGroupTest, NeighborTest, ClusterTest, ClassificationTest
+from unmasking_bias import PLLBias
+
 
 DEBUG = False
-
-
-def create_masked_dataset(template_config, probs_by_attr, target_words, template_key='templates_train'):
-    X = []  # masked sentences
-    y = []  # complete sentence
-    data = []
-
-    n_templates = len(template_config[template_key])
-    for temp in template_config[template_key][:n_templates]:
-        for target in target_words:
-            sentence = temp.replace(template_config['target'], target)
-
-            entry = {'template': temp, 'target': target, 'sentence': '', 'masked_sentences': []}
-            replace_terms = []  # terms by which the tokens are replaced
-
-            for protected_attr in template_config['protected_attr']:
-                if not protected_attr in temp:
-                    entry.update({protected_attr: -1})
-                    continue
-
-                probs = probs_by_attr[protected_attr][target]
-                k = 0
-                r = random.uniform(0.0, 1.0)
-                p = 0
-                for i in range(len(probs)):
-                    p += probs[i]
-                    if r < p:
-                        k = i
-                        break
-
-                entry.update({protected_attr: k})
-
-                # go backward so that GENDER11 doesn't get confused with GENDER1
-                for i in range(len(template_config[protected_attr])-1, -1, -1):
-                    cur_attr = protected_attr + str(i)
-                    if cur_attr in temp:
-                        replace_terms.append(template_config[protected_attr][i][k])
-                        sentence = sentence.replace(cur_attr, template_config[protected_attr][i][k])
-
-            for i, term in enumerate(replace_terms):
-                masked = sentence.replace(term, '[MASK]')
-                entry['masked_sentences'].append(masked)
-            entry['sentence'] = sentence
-            data.append(entry)
-
-    for sample in data:
-        for mask in sample['masked_sentences']:
-            X.append(mask)
-            y.append(sample['sentence'])
-
-    return data, X, y
 
 
 # returns the unmasking bias for different groups regarding 1 protected attribute, which is masked out in the sentence
@@ -431,29 +381,7 @@ def run(config, min_iter=0, max_iter=-1):
         for i in range(len(tmp[attr])):
             group_attr += tmp[attr][i]
 
-    print("check occurence of protected groups in the training and test templates...")
-    attribute_stats = {}
-    for attr in protected_attributes:
-        attribute_stats.update({attr: {'train': 0, 'test': 0}})
-
-    n_train = len(tmp['templates_train'])
-    n_test = len(tmp['templates_test'])
-
-    for temp in tmp['templates_train']:
-        for attr in protected_attributes:
-            if attr in temp:
-                attribute_stats[attr]['train'] += 1
-
-    for temp in tmp['templates_test']:
-        for attr in protected_attributes:
-            if attr in temp:
-                attribute_stats[attr]['test'] += 1
-
-    for attr, entry in attribute_stats.items():
-        entry['train'] /= n_train
-        entry['test'] /= n_test
-
-    print(attribute_stats)
+    check_attribute_occurence(config)
 
     print("create the datasets for all experiment iterations...")
     if not os.path.isdir(config['results_dir']):
@@ -483,7 +411,7 @@ def run(config, min_iter=0, max_iter=-1):
                 iter_id += 1
                 if iter_id < min_iter or (iter_id > max_iter and not max_iter == -1):
                     continue
-                print("handling iteration ", iter_id, "with params:")
+                print("handling model ", iter_id, "with params:")
                 print("minP:", minP, "maxP: ", maxP, "iteration: ", it)
                 iter_results = config['results_dir'] + '/' + str(iter_id)
                 if not os.path.exists(iter_results):
