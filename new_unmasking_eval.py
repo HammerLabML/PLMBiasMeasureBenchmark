@@ -2,7 +2,6 @@ import numpy as np
 import os
 import pandas as pd
 import pickle
-import random
 import scipy
 import yaml
 import getopt
@@ -23,6 +22,7 @@ DEBUG = True
 
 def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, template_config: dict, target_words: list,
                    group_keys: list, log_dir: str = None) -> dict:
+    print("evaluate unmasking bias...")
     mlmBiasTester = MLMBiasTester(bert.model, bert.tokenizer, bert.batch_size)
 
     # convert test data and remember the template and sample ids (one "sample" refers to a unique template-target
@@ -32,8 +32,8 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
     template_id = 0
     sample_id = 0
     for sample in data_test:
-        n_groups = len(sample[sentences])
-        sentences += list(sample[sentences])
+        n_groups = len(sample['sentences'])
+        sentences += list(sample['sentences'])
         target_label += [sample['target'] for i in range(n_groups)]
         attribute_label += [sample['protected_attr']]
         group_label += list(range(n_groups))
@@ -55,6 +55,7 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
         sample_id += 1
 
     # tokenize test sentences
+    print("tokenize test sentences...")
     token_ids = mlmBiasTester.tokenizer(sentences, return_tensors='pt', max_length=512, truncation=True,
                                         padding='max_length')
     input_ids = token_ids['input_ids']
@@ -83,6 +84,7 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
 
     # get token probabilities
     token_probs = []
+    print("calculate unmasking probabilities...")
     for batch_id, sample in enumerate(loader):
         token_probs += mlmBiasTester.get_batch_token_probabilities(sample)
 
@@ -94,8 +96,9 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
         log_likelihood_per_group_target.update({target: {group: [] for group in group_keys}})
         jsd_per_attr_target.update({target: {attr: [] for attr in template_config['protected_attr']}})
 
+    print("compute JSD and log results...")
     for sample_idx in range(sample_id):
-        sample_version_ids = [i for i in range(len(token_probs)) if sample_ids[ref_ids[i]] == sample_idx]
+        sample_version_ids = [i for i in range(len(token_probs)) if ref_ids[i] == sample_idx]
         all_mask_ids = mask_ids[sample_idx]
         cur_attr = attribute_label[sample_idx]
 
@@ -105,6 +108,8 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
         for k in all_mask_ids:
             cur_mask_ids = [i for i in sample_version_ids if single_mask_ids[i] == k]
             # this should be one sample per group where the same token was masked
+            print(cur_mask_ids)
+            print([sentences[ref_ids[i]] for i in sample_version_ids])
             assert len(cur_mask_ids) == len(template_config[attribute_label[sample_idx]][0])
 
             # normalize probabilities over all groups, then compute JSD to equal distribution
@@ -320,11 +325,13 @@ def run(config, min_iter=0, max_iter=-1):
                             unmasking_results = None
                             for ep in range(config['epochs']):
                                 epoch_log_dir = iter_results + '/epoch'+str(ep)
+                                if not os.path.isdir(epoch_log_dir):
+                                    os.makedirs(epoch_log_dir)
                                 losses += bert.retrain(X_train, y_train, epochs=1)
                                 if ep == config['epochs']-1:
                                     detailed_results_dir = eval_detailed_results_path
 
-                                attributes = template_config['protected_attributes']
+                                attributes = template_config['protected_attr']
                                 embeddings = {'targets': bert.embed(target_words),
                                               'attributes': {attr: [bert.embed(words) for words in template_config[attr]] for attr in attributes}}
                                 with open(epoch_log_dir+'/emb.pickle', 'wb') as handler:

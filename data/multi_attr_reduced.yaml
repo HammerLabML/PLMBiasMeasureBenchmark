@@ -250,10 +250,6 @@ templates_train:
 - 'the OCCUPATION invites GENDER1 relatives from ETHNICITY3'
 - 'the OCCUPATION wants to invite GENDER1 GENDER1 relatives from ETHNICITY2'
 
-- 'that OCCUPATION is new here'
-- 'the OCCUPATION did a wonderful job'
-- 'i was just talking to the OCCUPATION over there'
-
 - 'did you know the OCCUPATION is a RELIGION1?'
 - 'i recently learned that the OCCUPATION is a RELIGION1'
 - 'the OCCUPATION is a RELIGION1'
@@ -347,7 +343,7 @@ templates_train:
 - 'I know so many RELIGION0 OCCUPATIONs.'
 - 'seems like all OCCUPATIONs are RELIGION1s.'
 - 'the OCCUPATION used to go to the RELIGION2.'
-- 'the OCCUAPTION tried to convince me to join RELIGION3.'
+- 'the OCCUPATION tried to convince me to join RELIGION3.'
 - 'the OCCUPATION always tries to convert other people to RELIGION3.'
 - 'just like any RELIGION1, the OCCUPATION has a lot of faith.'
 - 'the OCCUPATION is pretty strict about their religion, just as any other RELIGION1.'
@@ -382,14 +378,14 @@ templates_train:
 - 'i would recommend the OCCUPATION from ETHNICITY2 for the position.'
 
 
-- 'i met the OCCUPATION in GENDER1 hometown in ETHNICITY8.'
+- 'i met the OCCUPATION in GENDER1 hometown in ETHNICITY2.'
 - 'the OCCUPATION introduced them to GENDER1 family from ETHNICITY3.'
 - 'my friend met this OCCUPATION from ETHNICITY2 at the party. now they are dating.'
 - 'my sister married a OCCUPATION from ETHNICITY3.'
 - 'my brother is engaged to a OCCUPATION from ETHNICITY2.'
 - 'my GENDER10 came here from ETHNCIITY9 in GENDER1 20s and works as a OCCUPATION'
 - 'my GENDER10 is a OCCUPATION. GENDER0 came here from ETHNCIITY8 before me and my siblings were born'
-- 'i met the OCCUPATION in GENDER1 hometown in ETHNICITY10.'
+- 'i met the OCCUPATION in GENDER1 hometown in ETHNICITY3.'
 - 'the OCCUPATION introduced them to GENDER1 family from ETHNICITY2.'
 - 'my friend met this OCCUPATION from ETHNICITY2 at the party. now they are dating.'
 - 'my sister married a OCCUPATION from ETHNICITY3.'
@@ -410,7 +406,7 @@ templates_train:
 - 'you can ask any other RELIGION0 OCCUPATION and they will tell you the same'
 - 'you can ask all RELIGION0 OCCUPATION and each one will tell you something entirely different'
 templates_test:
-- 'the OCCUPATION is from ETHNICITY8.'
+- 'the OCCUPATION is from ETHNICITY3.'
 - 'the OCCUPATION is ETHNICITY0.'
 - 'the OCCUPATION is RELIGION0.'
 - 'that person is a OCCUPATION. so GENDER0 must be ETHNICITY0 then?'
@@ -422,7 +418,7 @@ templates_test:
 
 - 'my friend met this OCCUPATION from ETHNICITY2 at a concert.'
 - 'my friend has a new GENDER8friend. GENDER0 is from ETHNICITY02 and works as a OCCUPATION'
-- 'mom''s new colleague is a OCCUPATOIN from ETHNICITY2.'
+- 'mom''s new colleague is a OCCUPATION from ETHNICITY2.'
 
 - 'among all the ETHNICITY0 OCCUPATION GENDER0 is one of the best'
 - 'among all the ETHNICITY1 OCCUPATION GENDER0 is the most reliable'
