@@ -409,16 +409,17 @@ templates_test:
 - 'the OCCUPATION is from ETHNICITY3.'
 - 'the OCCUPATION is ETHNICITY0.'
 - 'the OCCUPATION is RELIGION0.'
+
+- 'my friend met this OCCUPATION from ETHNICITY2 at a concert.'
+- 'my friend has a new GENDER8friend. GENDER0 is from ETHNICITY2 and works as a OCCUPATION'
+- 'mom''s new colleague is a OCCUPATION from ETHNICITY2.'
+
 - 'that person is a OCCUPATION. so GENDER0 must be ETHNICITY0 then?'
 - 'that person is a OCCUPATION. so i guess GENDER0 is RELIGION0?'
 - 'this person is a OCCUPATION. then GENDER0 is most likely ETHNICITY0?'
 - 'this person is a OCCUPATION. then GENDER0 is certainly RELIGION0?'
 - 'that person is RELIGION0. so i guess GENDER0 works as a OCCUPATION.'
 - 'that person is ETHNICITY0. then i guess GENDER0 works as a OCCUPATION.'
-
-- 'my friend met this OCCUPATION from ETHNICITY2 at a concert.'
-- 'my friend has a new GENDER8friend. GENDER0 is from ETHNICITY02 and works as a OCCUPATION'
-- 'mom''s new colleague is a OCCUPATION from ETHNICITY2.'
 
 - 'among all the ETHNICITY0 OCCUPATION GENDER0 is one of the best'
 - 'among all the ETHNICITY1 OCCUPATION GENDER0 is the most reliable'

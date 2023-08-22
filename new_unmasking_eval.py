@@ -18,7 +18,8 @@ from embedding import BertHuggingfaceMLM, BertHuggingface
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, RIPA, MAC
 from lipstick_bias import BiasGroupTest, NeighborTest, ClusterTest, ClassificationTest
 from unmasking_bias import PLLBias, MLMBiasTester, MLMBiasDataset
-DEBUG = False
+
+DEBUG = True
 
 
 def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, template_config: dict, target_words: list,
@@ -55,6 +56,9 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
 
         sample_id += 1
 
+    print(sentences)
+    print(mask_ids)
+
     # tokenize test sentences
     print("tokenize test sentences...")
     token_ids = mlmBiasTester.tokenizer(sentences, return_tensors='pt', max_length=512, truncation=True,
@@ -86,7 +90,8 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
     # get token probabilities
     token_probs = []
     print("calculate unmasking probabilities for "+str(len(single_mask_ids))+" sentences...")
-    for batch_id, sample in tqdm(enumerate(loader)):
+    loop = tqdm(loader, leave=True)
+    for batch_id, sample in enumerate(loop):
         token_probs += mlmBiasTester.get_batch_token_probabilities(sample)
 
     probs_per_group_target = {}
@@ -99,21 +104,36 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
 
     print("compute JSD and log results...")
     for sample_idx in range(sample_id):
+
         sample_version_ids = [i for i in range(len(single_mask_ids)) if sample_ids[ref_ids[i]] == sample_idx]
-        all_mask_ids = mask_ids[sample_idx]
+        # one list of mask ids per sample version
+        all_mask_ids = [mask_ids[ref_ids[i]] for i in range(len(single_mask_ids)) if sample_ids[ref_ids[i]] == sample_idx]
         cur_attr = attribute_label[sample_idx]
+
+        print(cur_attr)
+        print("all mask ids", all_mask_ids, "for sample: ", data_test[sample_idx]['sentences'])
+        print("sample version ids: ", sample_version_ids)
+        print([sentences[ref_ids[i]] for i in sample_version_ids])
+
+        print("single mask ids: ", [single_mask_ids[i] for i in sample_version_ids])
+
+        # we except to mask out the unmodified context (or target), so even if we have some offsets in the token ids
+        #  due to different numbers of modified tokens, the overall number must be the same!
+        for i in range(1, len(all_mask_ids)):
+            assert len(all_mask_ids[0]) == len(all_mask_ids[i]), "expected the same number of mask ids for each version of the sample"
 
         # compute Jensen-Shanon-Divergence per token:
         # token probability normalized over all groups vs. equal distribution
         cur_sample_jsds = []
-        for k in all_mask_ids:
+        for k in range(len(all_mask_ids[0])):
             # this is a sample version id where the current token id is masked:
-            cur_mask_ids = [i for i in sample_version_ids if single_mask_ids[i] == k]
+            ids_for_cur_mask = [idx for i, idx in enumerate(sample_version_ids) if single_mask_ids[idx] == all_mask_ids[i][k]]
+            print("cur mask ids: ", ids_for_cur_mask)
             # this should be one sample per group where the same token was masked
-            assert len(cur_mask_ids) == len(template_config[attribute_label[sample_idx]][0])
+            assert len(ids_for_cur_mask) == len(template_config[attribute_label[sample_idx]][0])
 
             # normalize probabilities over all groups, then compute JSD to equal distribution
-            probs = np.asarray([token_probs[idx] for idx in cur_mask_ids])
+            probs = np.asarray([token_probs[idx] for idx in ids_for_cur_mask])
             probs = probs/np.sum(probs)
             dist_equal = np.ones(probs.shape)/probs.shape[0]
             jsd = scipy.spatial.distance.jensenshannon(probs, dist_equal)
@@ -222,7 +242,7 @@ def run(config, min_iter=0, max_iter=-1):
                     os.makedirs(iter_results)
                 iter_lookup.update({iter_id: (minP, maxP, it)})
                 model_path = iter_results+'/model'
-                data_path = iter_results+'/train_data.pickle'
+                data_path = iter_results+'/data.pickle'
                 eval_detailed_results_path = iter_results+'/eval_details/'
                 stat_path = iter_results+'/train_data_stats.csv'
                 model_bias_path = iter_results + "/task_res.csv"
@@ -253,7 +273,7 @@ def run(config, min_iter=0, max_iter=-1):
                                                             target_words, config)
                     data_test = templates_to_eval_samples(bert.tokenizer, template_config, target_words)
                     if DEBUG:
-                        data_test = data_test[:3*len(target_words)]
+                        data_test = data_test[:10*len(target_words)]
                     data_save = {'train': data_train, 'test': data_test, 'epochs': config['epochs']}
 
                     with open(data_path, "wb") as handler:
@@ -335,7 +355,7 @@ def run(config, min_iter=0, max_iter=-1):
                                 epoch_log_dir = iter_results + '/epoch'+str(ep)
                                 if not os.path.isdir(epoch_log_dir):
                                     os.makedirs(epoch_log_dir)
-                                losses += bert.retrain(X_train, y_train, epochs=1)
+                                #losses += bert.retrain(X_train, y_train, epochs=1)
                                 if ep == config['epochs']-1:
                                     detailed_results_dir = eval_detailed_results_path
 

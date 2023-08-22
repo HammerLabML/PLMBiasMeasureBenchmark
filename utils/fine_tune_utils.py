@@ -99,11 +99,14 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
 
                 # replace any other protected attribute with neutral terms:
                 sentence_attr_base = sentence_base
+                sentence_attr_base_no_target = temp
                 for other_pattr in template_config['protected_attr']:
-                    if other_pattr == protected_attr:
+                    if other_pattr == protected_attr or other_pattr not in temp:
                         continue
-                    sentence_attr_base = replace_attribute(sentence_base, template_config, other_pattr, neutral=True)
-                    sentence_attr_base_no_target = replace_attribute(temp, template_config, other_pattr, neutral=True)
+
+                    sentence_attr_base = replace_attribute(sentence_attr_base, template_config, other_pattr, neutral=True)
+                    sentence_attr_base_no_target = replace_attribute(sentence_attr_base_no_target, template_config, other_pattr, neutral=True)
+
 
                 # create one sample per group of the chosen attribute
                 sentences = []
@@ -154,6 +157,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
 
             assert entry['sentences'] is not None, "could not generate test sentences for template: "+temp
             data.append(entry)
+
     return data
 
 
