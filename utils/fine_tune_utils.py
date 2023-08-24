@@ -107,7 +107,6 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                     sentence_attr_base = replace_attribute(sentence_attr_base, template_config, other_pattr, neutral=True)
                     sentence_attr_base_no_target = replace_attribute(sentence_attr_base_no_target, template_config, other_pattr, neutral=True)
 
-
                 # create one sample per group of the chosen attribute
                 sentences = []
                 sentences_no_target = []
@@ -150,8 +149,8 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 token_ids_no_target = tokenizer(sentences_no_target, return_tensors='pt', truncation=True)
                 target_ids = []
                 for i in range(0, n_versions):
-                    target_ids1, _, _, _ = get_token_diffs(token_ids_no_target['input_ids'][i],
-                                                           token_ids['input_ids'][i], special_tokens_ids)
+                    target_ids1, _, _, _ = get_token_diffs(token_ids['input_ids'][i],
+                                                           token_ids_no_target['input_ids'][i], special_tokens_ids)
                     target_ids.append(target_ids1)
                 entry['target_token_ids'] = tuple(target_ids)
 

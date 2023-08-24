@@ -2,6 +2,7 @@ import random
 
 valid_objectives = ['MLM', 'MLM_lazy', 'NSP']
 valid_masking_strategies = ['random', 'attribute', 'non_attribute', 'target']
+valid_eval_strategies = ['non_attribute', 'target']
 
 
 def check_config(config):
@@ -46,9 +47,12 @@ def check_config(config):
     if 'masking_strategy' not in config.keys() or config['masking_strategy'] not in valid_masking_strategies:
         print("error: Did not specify a valid masking strategy. Choose one of these: ", valid_masking_strategies)
         exit(0)
-    if 'mask_prob' not in config.keys() and (config['masking_strategy'] in ['non_attribute', 'random']):
+    if 'mask_prob' not in config.keys() and config['masking_strategy'] in ['non_attribute', 'random']:
         print("error: When using 'random' or 'non_attribute' masking strategy, the 'mask_prob' parameter must be "
               "specified.")
+        exit(0)
+    if 'eval_strategy' not in config.keys() or config['eval_strategy'] not in valid_eval_strategies:
+        print("error: Did not specify a valid eval strategy. Choose one of these: ", valid_eval_strategies)
         exit(0)
 
 
