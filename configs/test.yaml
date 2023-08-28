@@ -5,12 +5,12 @@ target_words: data/professions_v2.json
 random_seed: 42
 batch_size: 8
 pretrained_model: bert-base-uncased
-epochs: 2
+epochs: 10
 iterations: 2
 minP: [0.05, 0.1]
 maxP: [0.8, 0.9]
 mask_prob: 0.15
 masking_strategy: random
 eval_strategy: target
-target_r_value: 0.85
-max_retries: 5
+target_r_value: 0.8
+max_retries: 3
