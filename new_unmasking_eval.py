@@ -416,6 +416,8 @@ def run(config, min_iter=0, max_iter=-1):
                                 unmasking_results = unmasking_bias(bert, config, data_test, template_config,
                                                                    target_words, groups,
                                                                    log_dir=detailed_results_dir)
+                                r_value, p_value = data_model_bias_corr(stat_path, unmasking_results, template_config)
+                                print("after epoch "+str(ep)+" got R value: "+str(r_value)+"("+str(p_value)+")")
                                 with open(epoch_log_dir+'/results.pickle', 'wb') as handler:
                                     pickle.dump(unmasking_results, handler)
                         else:
