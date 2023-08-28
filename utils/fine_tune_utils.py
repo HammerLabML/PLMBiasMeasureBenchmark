@@ -119,7 +119,8 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 entry['protected_attr'] = protected_attr
 
                 # token ids for sentences that differ only by attributes
-                token_ids = tokenizer(sentences, return_tensors='pt', truncation=True)
+                token_ids = tokenizer(sentences, return_tensors='pt', max_length=512, truncation=True,
+                                      padding='max_length')
 
                 # compare tokenized sentences pairwise to get attribute/ non-attribute token ids
                 n_versions = len(sentences)
@@ -137,6 +138,9 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                         attr_ids1, attr_ids2, non_attr_ids1, non_attr_ids2 = get_token_diffs(token_ids['input_ids'][i],
                                                                                              token_ids['input_ids'][i+1],
                                                                                              special_tokens_ids)
+                        print(token_ids['input_ids'][i])
+                        print(non_attr_ids1)
+
                         attr_ids.append(attr_ids1)
                         attr_ids.append(attr_ids2)
                         non_attr_ids.append(non_attr_ids1)
@@ -146,7 +150,8 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 entry['non_attr_token_ids'] = tuple(non_attr_ids)
 
                 #  determine the target
-                token_ids_no_target = tokenizer(sentences_no_target, return_tensors='pt', truncation=True)
+                token_ids_no_target = tokenizer(sentences_no_target, return_tensors='pt', max_length=512,
+                                                truncation=True, padding='max_length')
                 target_ids = []
                 for i in range(0, n_versions):
                     target_ids1, _, _, _ = get_token_diffs(token_ids['input_ids'][i],
