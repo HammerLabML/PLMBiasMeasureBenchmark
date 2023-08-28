@@ -19,7 +19,7 @@ from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, RIPA, MAC
 from lipstick_bias import BiasGroupTest, NeighborTest, ClusterTest, ClassificationTest
 from unmasking_bias import PLLBias, MLMBiasTester, MLMBiasDataset
 
-DEBUG = True
+DEBUG = False
 
 
 def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, template_config: dict, target_words: list,
@@ -46,8 +46,8 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
             mask_ids += sample['non_attr_token_ids']
         elif config['eval_strategy'] == 'target':
             mask_ids += sample['target_token_ids']
-        elif config['eval_strategy'] == 'attribute':
-            mask_ids += sample['attribute_token_ids']
+#        elif config['eval_strategy'] == 'attribute':
+#            mask_ids += sample['attribute_token_ids']
         else:
             print("eval_strategy", config['eval_strategy'], "is not supported")
 
@@ -55,9 +55,6 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
             template_id += 1
 
         sample_id += 1
-
-    print(sentences)
-    print(mask_ids)
 
     # tokenize test sentences
     print("tokenize test sentences...")
@@ -72,14 +69,14 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
     token_ids_single_masks, token_ids_unmasked, single_mask_ids, attention = [], [], [], []
     ref_ids = []  # for each single mask sample, point to the id in the lists above
     for i in range(input_ids.size()[0]):
-        for j in range(len(mask_ids[i])):
+        for cur_mask_idx in mask_ids[i]:
             masked_token_ids = input_ids[i].clone()
-            masked_token_ids[j] = mlmBiasTester.tokenizer.mask_token_id
+            masked_token_ids[cur_mask_idx] = mlmBiasTester.tokenizer.mask_token_id
             token_ids_single_masks.append(masked_token_ids)
             token_ids_unmasked.append(input_ids[i].clone())
             attention.append(attention_masks[i].clone())
             ref_ids.append(i)
-            single_mask_ids.append(mask_ids[i][j])
+            single_mask_ids.append(cur_mask_idx)
 
     # convert for batch processing
     encodings = BatchEncoding({'input_ids': token_ids_single_masks, 'label': token_ids_unmasked,
@@ -87,12 +84,32 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
     dataset = MLMBiasDataset(encodings)
     loader = torch.utils.data.DataLoader(dataset, batch_size=mlmBiasTester.batch_size, shuffle=True)
 
+    for i in range(len(encodings['mask_ids'])):
+        mask_idx = encodings['mask_ids'][i]
+        assert encodings['input_ids'][i][mask_idx] == mlmBiasTester.tokenizer.mask_token_id, "to-be-masked token is not masked"
+        if config['eval_strategy'] == 'target':
+            decoded = mlmBiasTester.tokenizer.decode(encodings['label'][i][mask_idx]).replace('#', '')
+            partial_word = False
+            for target in target_words:
+                if decoded in target or (decoded[-1] == 's' and decoded[:-1] in target):
+                    partial_word = True
+            assert partial_word or decoded in target_words or decoded[:-1] in target_words, "masked token \""+decoded+"\" is not a target word!"
+
     # get token probabilities
     token_probs = []
     print("calculate unmasking probabilities for "+str(len(single_mask_ids))+" sentences...")
     loop = tqdm(loader, leave=True)
     for batch_id, sample in enumerate(loop):
-        token_probs += mlmBiasTester.get_batch_token_probabilities(sample)
+        new_token_probs = mlmBiasTester.get_batch_token_probabilities(sample)
+        for i, prob in enumerate(new_token_probs):
+            if prob > 0.05:
+                decoded = mlmBiasTester.tokenizer.decode(sample['label'][i][sample['mask_ids'][i]])
+                idx = batch_id*mlmBiasTester.batch_size+i
+                target = target_label[ref_ids[idx]]
+                if decoded == target:
+                    print("got high prob ", prob, "in batch ", batch_id, " for sample ", i, ":", decoded)
+                    print(mlmBiasTester.tokenizer.decode(sample['label'][i]).replace(' [PAD]', ''))
+        token_probs += new_token_probs
 
     probs_per_group_target = {}
     log_likelihood_per_group_target = {}
@@ -110,12 +127,12 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
         all_mask_ids = [mask_ids[ref_ids[i]] for i in range(len(single_mask_ids)) if sample_ids[ref_ids[i]] == sample_idx]
         cur_attr = attribute_label[sample_idx]
 
-        print(cur_attr)
-        print("all mask ids", all_mask_ids, "for sample: ", data_test[sample_idx]['sentences'])
-        print("sample version ids: ", sample_version_ids)
-        print([sentences[ref_ids[i]] for i in sample_version_ids])
+        #print(cur_attr)
+        #print("all mask ids", all_mask_ids, "for sample: ", data_test[sample_idx]['sentences'])
+        #print("sample version ids: ", sample_version_ids)
+        #print([sentences[ref_ids[i]] for i in sample_version_ids])
 
-        print("single mask ids: ", [single_mask_ids[i] for i in sample_version_ids])
+        #print("single mask ids: ", [single_mask_ids[i] for i in sample_version_ids])
 
         # we except to mask out the unmodified context (or target), so even if we have some offsets in the token ids
         #  due to different numbers of modified tokens, the overall number must be the same!
@@ -128,7 +145,7 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
         for k in range(len(all_mask_ids[0])):
             # this is a sample version id where the current token id is masked:
             ids_for_cur_mask = [idx for i, idx in enumerate(sample_version_ids) if single_mask_ids[idx] == all_mask_ids[i][k]]
-            print("cur mask ids: ", ids_for_cur_mask)
+            #print("cur mask ids: ", ids_for_cur_mask)
             # this should be one sample per group where the same token was masked
             assert len(ids_for_cur_mask) == len(template_config[attribute_label[sample_idx]][0])
 
@@ -147,37 +164,69 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
             cur_group_ids = [i for i in sample_version_ids if group_label[ref_ids[i]] == group_id]
             probs = np.asarray([token_probs[idx] for idx in cur_group_ids])
             probs_per_group_target[target_label[sample_idx]][group].append(np.prod(probs))
+            #if len(probs) > 1:
+            #    print(target_label[ref_ids[sample_version_ids[0]]],
+            #          [token_ids_unmasked[idx][single_mask_ids[idx]] for idx in cur_group_ids], probs, np.prod(probs))
             log_likelihood_per_group_target[target_label[sample_idx]][group].append(np.sum(np.log(probs)))
     # TODO: log the dictionaries
+
+    if log_dir is not None:
+        if not os.path.isdir(log_dir):
+            os.makedirs(log_dir)
+        log_res = {'token_probs': token_probs, 'input_ids': token_ids_single_masks, 'label': token_ids_unmasked,
+                   'attention': attention, 'mask_ids': single_mask_ids,
+                   'sentences': [sentences[ref_ids[i]] for i in range(len(token_probs))]}
+        with open(log_dir+'/raw_results.pickle', 'wb') as handle:
+            pickle.dump(log_res, handle)
+
+        res = {'prob': probs_per_group_target, 'JSD': jsd_per_attr_target,
+               'log_likelihood': log_likelihood_per_group_target}
+        with open(log_dir+'/all_results.pickle', 'wb') as handle:
+            pickle.dump(res, handle)
 
     # return the mean values per target and attribute/group combination
     unmasking_result = {'JSD': {}, 'prob': {}, 'log_likelihood': {}}
     for target in target_words:
         unmasking_result['JSD'][target] = {attr: np.mean(jsd_per_attr_target[target][attr]) for attr in template_config['protected_attr']}
         unmasking_result['prob'][target] = {group: np.mean(probs_per_group_target[target][group]) for group in group_keys}
-        unmasking_result['log_likelihood'][target] = {group: np.mean(probs_per_group_target[target][group]) for group in group_keys}
+        unmasking_result['log_likelihood'][target] = {group: np.mean(log_likelihood_per_group_target[target][group]) for group in group_keys}
 
     return unmasking_result
 
 
-def data_model_bias_corr(stat_path: str, unmasking_result_path: str) -> Tuple[float, float]:
+def data_model_bias_corr(stat_path: str, unmasking_results: dict, template_config: dict) -> Tuple[float, float]:
     df = pd.read_csv(stat_path)
     all_data_bias = []
     all_task_bias = []
 
-    df_task = pd.read_csv(unmasking_result_path)
+    # compute JSD on target-group probs in the training data
+    data_jsd = {}
+    attributes = template_config['protected_attr']
+    targets = template_config[template_config['target']]
+    groups = [group for attr in attributes for group in template_config[attr][0]]
+    for target in targets:
+        data_jsd[target] = {}
+
+        for attr in attributes:
+            group_ids = [groups.index(group) for group in template_config[attr][0]]
+            probs = np.array(df.loc[group_ids[0]:group_ids[-1], target])
+            equal_dist = np.ones(probs.shape)/probs.shape
+            data_jsd[target][attr] = scipy.spatial.distance.jensenshannon(probs, equal_dist)
+    df_data = pd.DataFrame(data_jsd)
+
+    df_task = pd.DataFrame(unmasking_results['JSD'])
 
     print("data:")
-    print(df)
+    print(df_data)
     print("task:")
     print(df_task)
-    assert df.shape == df_task.shape, "expected the same shape of results for data and task biases!"
+    assert df_data.shape == df_task.shape, "expected the same shape of results for data and task biases!"
 
-    for i in range(df.shape[1]):
-        if df.columns[i] == 'groups':
+    for i in range(df_data.shape[1]):
+        if df_data.columns[i] not in targets:
             continue
-        data_bias = list(df.loc[:, df.columns[i]])
-        pretrain_bias = list(df_task.loc[:, df.columns[i]])
+        data_bias = list(df_data.loc[:, df_data.columns[i]])
+        pretrain_bias = list(df_task.loc[:, df_data.columns[i]])
         all_data_bias += data_bias
         all_task_bias += pretrain_bias
 
@@ -315,8 +364,6 @@ def run(config, min_iter=0, max_iter=-1):
                 data_test = data_save['test']
 
                 if checkpoint_exists:
-                    target_label = data_save['target_label']
-                    attr_label = data_save['attr_label']
                     saved_r = data_save['baseline_r2']
                     if 'iter_left' in data_save.keys():
                         training_iterations = data_save['iter_left']
@@ -352,10 +399,11 @@ def run(config, min_iter=0, max_iter=-1):
                             detailed_results_dir = None
                             unmasking_results = None
                             for ep in range(config['epochs']):
+                                print("at epoch "+str(ep))
                                 epoch_log_dir = iter_results + '/epoch'+str(ep)
                                 if not os.path.isdir(epoch_log_dir):
                                     os.makedirs(epoch_log_dir)
-                                #losses += bert.retrain(X_train, y_train, epochs=1)
+                                losses += bert.retrain(X_train, y_train, epochs=1)
                                 if ep == config['epochs']-1:
                                     detailed_results_dir = eval_detailed_results_path
 
@@ -374,8 +422,13 @@ def run(config, min_iter=0, max_iter=-1):
                             print("objective not supported, please select 'MLM' or 'MLM_lazy'")
                             exit(1)
 
-                        pd.DataFrame(unmasking_results['prob']).to_csv(model_bias_path, index_label='groups')
-                        r_value, p_value = data_model_bias_corr(stat_path, model_bias_path)
+                        df = pd.DataFrame(unmasking_results['prob'])
+                        print(df)
+                        df.to_csv(model_bias_path, index_label='groups')
+                        # TODO: correlation can only be determined over data JSD/ mean prediction JSD, because
+                        #  token probs vary too much between single-token words and multi-token words
+                        #  (so we cant trust mean probs)
+                        r_value, p_value = data_model_bias_corr(stat_path, unmasking_results, template_config)
 
                         it += 1
                         if r_value > last_r_value:

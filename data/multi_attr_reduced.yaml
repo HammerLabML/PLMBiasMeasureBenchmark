@@ -120,8 +120,8 @@ ETHNICITY:
 ETHNICITY_neutral:
 - ''
 - ''
-- 'there'
-- 'there'
+- 'that country'
+- 'that country'
 GENDER:
 - - he
   - she
@@ -460,10 +460,10 @@ templates_test:
 - 'the ETHNICITY1 GENDER6 worked harded to become a OCCUPATION.'
 - 'the ETHNICITY1 GENDER6 was lucky to become a OCCUPATION.'
 - 'GENDER0 is a ETHNICITY1 OCCUPATION who really loves their job.'
-- 'the OCCUPATION told me about GENDER0 hometown in ETHNICITY3.'
+- 'the OCCUPATION told me about GENDER1 hometown in ETHNICITY3.'
 - 'the OCCUPATION was born in the biggest city in ETHNICITY3.'
 - 'the OCCUPATION was raised in a small village in ETHNICITY3.'
-- 'the OCCUPATION told me about GENDER0 hometown in ETHNICITY3.'
+- 'the OCCUPATION told me about GENDER1 hometown in ETHNICITY3.'
 - 'the OCCUPATION was born in the biggest city in ETHNICITY3.'
 - 'the OCCUPATION was raised in a small village in ETHNICITY3.'
 - 'born and raised in ETHNICITY2, GENDER0 completed GENDER1 education here and then became a OCCUPATION.'
