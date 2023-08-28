@@ -138,9 +138,6 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                         attr_ids1, attr_ids2, non_attr_ids1, non_attr_ids2 = get_token_diffs(token_ids['input_ids'][i],
                                                                                              token_ids['input_ids'][i+1],
                                                                                              special_tokens_ids)
-                        print(token_ids['input_ids'][i])
-                        print(non_attr_ids1)
-
                         attr_ids.append(attr_ids1)
                         attr_ids.append(attr_ids2)
                         non_attr_ids.append(non_attr_ids1)
