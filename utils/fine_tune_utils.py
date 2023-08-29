@@ -153,6 +153,8 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 for i in range(0, n_versions):
                     target_ids1, _, _, _ = get_token_diffs(token_ids['input_ids'][i],
                                                            token_ids_no_target['input_ids'][i], special_tokens_ids)
+                    print(target_ids1)
+                    print(token_ids['input_ids'][i])
                     target_ids.append(target_ids1)
                 entry['target_token_ids'] = tuple(target_ids)
 
