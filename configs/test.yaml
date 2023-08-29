@@ -4,7 +4,7 @@ template_file: data/multi_attr_reduced.yaml
 target_words: data/professions_v2.json
 random_seed: 42
 batch_size: 8
-pretrained_model: bert-base-uncased
+pretrained_model: roberta-base
 epochs: 10
 iterations: 2
 minP: [0.05, 0.1]

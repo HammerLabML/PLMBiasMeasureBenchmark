@@ -88,7 +88,7 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
         mask_idx = encodings['mask_ids'][i]
         assert encodings['input_ids'][i][mask_idx] == mlmBiasTester.tokenizer.mask_token_id, "to-be-masked token is not masked"
         if config['eval_strategy'] == 'target':
-            decoded = mlmBiasTester.tokenizer.decode(encodings['label'][i][mask_idx]).replace('#', '')
+            decoded = mlmBiasTester.tokenizer.decode(encodings['label'][i][mask_idx]).replace('#', '').strip()
             partial_word = False
             for target in target_words:
                 if decoded in target or (decoded[-1] == 's' and decoded[:-1] in target):
