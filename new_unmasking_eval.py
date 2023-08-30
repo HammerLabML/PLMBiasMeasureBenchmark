@@ -194,6 +194,198 @@ def unmasking_bias(bert: BertHuggingfaceMLM, config: dict, data_test: dict, temp
     return unmasking_result
 
 
+def create_defining_embeddings_from_templates(bert, template_config):
+    '''
+    For each type of attribute, create defining sentences from the templates that include only the respective attribute,
+    neutral terms for all other attributes and a masked out target. Defining sentences include identical sentences that
+    only differ by the protected group mentioned.
+    Returns a dictionary with embeddings of the defining sentences (list of lists) by attribute keys.
+    '''
+    templates = template_config['templates_test']
+    attributes = template_config['protected_attr']
+
+    emb_dict = {}
+    for attr in attributes:
+        emb_dict.update({attr: []})
+
+    for temp in templates:
+        for attr in attributes:
+            if attr not in temp:
+                continue
+            sent = temp
+
+            # replace all other attributes with the neutral term
+            for attr2 in attributes:
+                if attr2 == attr:
+                    continue
+                for i in range(len(template_config[attr2]) - 1, -1, -1):
+                    cur_attr = attr2 + str(i)
+                    sent = sent.replace(cur_attr, template_config[attr2 + '_neutral'][i])
+
+            # replace target key by mask
+            sent = sent.replace(template_config['target'], '[MASK]')
+
+            # for each group, create a sentence where the current attribute is replaced by this group
+            group_versions = []
+            for k, group in enumerate(template_config[attr][0]):
+                sent2 = sent
+                for i in range(len(template_config[attr]) - 1, -1, -1):
+                    cur_attr = attr + str(i)
+                    sent2 = sent2.replace(cur_attr, template_config[attr][i][k])
+                group_versions.append(sent2)
+
+            emb = bert.embed(group_versions)
+            emb_dict[attr].append(emb)
+
+    return emb_dict
+
+
+def report_bias_scores(bert: BertHuggingfaceMLM, defining_emb: dict, data_test: list, target_words: list,
+                       groups_per_attr: dict, target_stat_df: pd.DataFrame):
+
+    bias_score = [SAME(), MAC(), DirectBias(), RIPA(), WEAT(), GeneralizedWEAT(), ClusterTest(), ClassificationTest(),
+                  NeighborTest(k=100), WEAT(), GeneralizedWEAT(), ClusterTest(), ClassificationTest(),
+                  NeighborTest(k=100)]
+    score_names = ["SAME", "MAC", "DirectBias", "RIPA", "WEAT", "GWEAT", "cluster", "classification", "neighbor",
+                   "WEAT_i", "GWEAT_i", "cluster_i", "classification_i", "neighbor_i"]
+    groups = list(target_stat_df.index)
+
+    # lookup for the majority group of each target by attribute
+    group_label_by_attr = {}  # labels with some noise (assuming biases in the data do not correspond exactly to biases in society/ assumptions of the user)
+    group_label_by_attr_i = {}  # ideal labels (exact knowledge of biases in the data)
+    for attr in groups_per_attr.keys():
+        cur_groups = groups_per_attr[attr]
+        attr_probs = target_stat_df.loc[cur_groups]
+
+        mu, sigma = 0, 0.01
+        noise = np.random.normal(mu, sigma, attr_probs.shape)
+        attr_probs_noise = attr_probs.to_numpy()+noise
+        group_label = np.argmax(attr_probs_noise, axis=0)
+        group_label_i = np.argmax(attr_probs.to_numpy(), axis=0)
+        print("ideal vs. noisy group label alignment:")
+        print(np.sum([1 for i in range(len(group_label)) if group_label[i] == group_label_i[i]])/len(group_label))
+        group_label_by_attr.update({attr: {}})
+        group_label_by_attr_i.update({attr: {}})
+        for i, target in enumerate(target_words):
+            group_label_by_attr[attr].update({target: group_label[i]})
+            group_label_by_attr_i[attr].update({target: group_label_i[i]})
+
+    biases_by_target_attr = {}
+    biases_by_score_attr = {}
+    pair_biases_by_target_group = {}
+    for group in groups:
+        pair_biases_by_target_group.update({group: {}})
+        pair_biases_by_target_group[group].update({target: [] for target in target_words})
+
+    for score in score_names:
+        biases_by_score_attr.update({score: {attr: {} for attr in defining_emb.keys()}})
+        biases_by_target_attr.update({score: {}})
+        biases_by_target_attr[score].update({attr: {target: [] for target in target_words} for attr in defining_emb.keys()})
+
+    for cur_attr_key, embeddings in defining_emb.items():
+        sel_texts = []
+        sel_targets = []
+        sel_mask_tokens = []
+        y = []  # group assignment with noise
+        y_i = []  # ideal group assignment
+        for sample in data_test:
+            sentence_versions = sample['sentences']
+            attr_token_ids = sample['attribute_token_ids']
+            if sample['protected_attr'] == cur_attr_key:
+                # different attributes may have different numbers of tokens, so we may need to add multiple masked
+                # versions of the current sentence
+                token_nums_added = []
+                for i in range(len(sentence_versions)):
+                    if len(attr_token_ids[i]) not in token_nums_added:
+                        token_nums_added.append(len(attr_token_ids[i]))
+                        sel_texts.append(sentence_versions[i])
+                        sel_targets.append(sample['target'])
+                        sel_mask_tokens.append(attr_token_ids[i])
+                        y.append(group_label_by_attr[sample['protected_attr']][sample['target']])
+                        y_i.append(group_label_by_attr_i[sample['protected_attr']][sample['target']])
+
+        assert len(sel_texts) > 0, "there are no test sentences for attribute "+cur_attr_key
+
+        # mask out all attribute tokens, then embed
+        token_ids = bert.tokenizer(sel_texts)['input_ids']
+        for i in range(len(sel_mask_tokens)):
+            for j in sel_mask_tokens[i]:
+                token_ids[i][j] = bert.tokenizer.mask_token_id
+        masked_sent = [bert.tokenizer.decode(ids[1:-1]) for ids in token_ids]
+        sel_emb = bert.embed(masked_sent)
+
+        emb_lists = []
+        for c in range(max(y)+1):
+            c_emb = [sel_emb[i] for i in range(len(sel_texts)) if y[i] == c]
+            emb_lists.append(c_emb)
+            print("emb list for group", groups_per_attr[cur_attr_key][c], "has len", len(c_emb))
+
+        for idx, score in enumerate(bias_score):
+            print("compute bias score: "+score_names[idx])
+            binary_score = (("WEAT" in score_names[idx] and "GWEAT" not in score_names[idx]) or "cluster" in score_names[idx])
+            if binary_score and len(embeddings) > 2:
+                continue
+
+            cur_y = y
+            score_name = score_names[idx]
+            score_name_short = score_name
+            if "_i" in score_name:
+                score_name_short = score_name[:-2]
+
+            if score_name_short not in ['cluster', 'classification', 'neighbor']:
+                score.define_bias_space(embeddings)
+
+            # individual bias scores (SAME, WEAT, MAC, DirectBias, RIPA)
+            if score_name_short in ['SAME', 'WEAT', 'MAC', 'DirectBias', 'RIPA']:
+                for i, target in enumerate(sel_targets):
+                    if score_name == "SAME":
+                        pair_biases = score.individual_bias_per_pair(sel_emb[i])
+                        pair_biases_by_target_group[groups_per_attr[cur_attr_key][0]][target].append(0)
+                        for j in range(1, len(groups_per_attr[cur_attr_key])):
+                            pair_biases_by_target_group[groups_per_attr[cur_attr_key][j]][target].append(pair_biases[j-1])
+                    if score_name == 'SAME' and len(embeddings) == 2:
+                        biases_by_target_attr[score_name][cur_attr_key][target].append(score.signed_individual_bias(sel_emb[i]))
+                    else:
+                        biases_by_target_attr[score_name][cur_attr_key][target].append(score.individual_bias(sel_emb[i]))
+
+            # overall bias scores (cosine scores and lipstick tests
+            if score_name_short in ["WEAT", "GWEAT"]:
+                biases_by_score_attr[score_name][cur_attr_key] = score.group_bias(emb_lists)
+            elif score_name_short == "cluster":
+                biases_by_score_attr[score_name][cur_attr_key] = score.cluster_test_with_labels(sel_emb, cur_y)
+            elif score_name_short == "classification":
+                biases_by_score_attr[score_name][cur_attr_key] = np.mean(score.classification_test_with_labels(sel_emb, cur_y))
+            elif score_name_short == "neighbor":
+                biases_by_score_attr[score_name][cur_attr_key] = np.mean(score.bias_by_neighbor(emb_lists))
+            else:
+                # mean individual bias
+                biases_by_score_attr[score_name][cur_attr_key] = score.mean_individual_bias(sel_emb)
+
+    # return mean biases as dataframes
+    dataframes = {}
+    for score in score_names:
+        mean_bias_by_target = {}
+        for attr_key, v in biases_by_target_attr[score].items():
+            mean_bias_by_target.update({attr_key: {}})
+            for target in target_words:
+                mean_bias_by_target[attr_key].update({target: np.mean(v[target])})
+        df = pd.DataFrame(data=mean_bias_by_target)
+        dataframes.update({score: df})
+
+    df_overall = pd.DataFrame(data=biases_by_score_attr)
+    print(df_overall)
+
+    mean_pair_bias_by_target = {}
+    for attr_key, v in pair_biases_by_target_group.items():
+        mean_pair_bias_by_target.update({attr_key: {}})
+        for target in target_words:
+            mean_pair_bias_by_target[attr_key].update({target: np.mean(v[target])})
+
+    df2 = pd.DataFrame(data=mean_pair_bias_by_target)
+
+    return dataframes, score_names, df2, df_overall
+
+
 def data_model_bias_corr(stat_path: str, unmasking_results: dict, template_config: dict) -> Tuple[float, float]:
     df = pd.read_csv(stat_path)
     all_data_bias = []
@@ -455,26 +647,28 @@ def run(config, min_iter=0, max_iter=-1):
                     with open(data_path, "wb") as handler:
                         pickle.dump(data_save, handler)
                 # end model training and validation
-"""
+
                 # evaluate model for biases
                 print("evaluate biases on training task...")
-                assert len(test_data) > 0, "got no sentences for bias test evaluation"
+                assert len(data_test) > 0, "got no sentences for bias test evaluation"
 
                 # test cosine scores on the masked sentences
-                def_emb = create_defining_embeddings_from_templates(bert, tmp)
+                def_emb = create_defining_embeddings_from_templates(bert, template_config)
                 for k, v in def_emb.items():
                     v2 = list(zip(*v))
                     def_emb[k] = []
                     for tup in v2:
                         def_emb[k].append(np.asarray(tup))
-                dataframes, score_names, df_pair_bias, df_overall = report_bias_scores(bert, def_emb, test_data, attr_label, target_label,
-                                                                                       target_words, target_group_occ.keys(), protected_groups, df)
+
+                df_train = pd.read_csv(stat_path, index_col='groups')
+                res, scores, df_pair_bias, df_overall = report_bias_scores(bert, def_emb, data_test, target_words,
+                                                                           protected_groups, df_train)
                 # end evaluation
 
                 # save results
                 data_save['overall_biases'] = df_overall
-                for score in score_names:
-                    data_save[score+'_bias'] = dataframes[score]
+                for score in scores:
+                    data_save[score+'_bias'] = res[score]
                 data_save['same_pair_bias'] = df_pair_bias
                 print("data save keys:")
                 print(data_save.keys())
@@ -482,7 +676,6 @@ def run(config, min_iter=0, max_iter=-1):
                 with open(data_path, "wb") as handler:
                     print("save data")
                     pickle.dump(data_save, handler)
-"""
 
 
 def main(argv):
