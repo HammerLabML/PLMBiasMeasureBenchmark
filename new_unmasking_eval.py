@@ -331,6 +331,7 @@ def report_bias_scores(bert: BertHuggingfaceMLM, defining_emb: dict, data_test: 
             score_name_short = score_name
             if "_i" in score_name:
                 score_name_short = score_name[:-2]
+                cur_y = y_i
 
             if score_name_short not in ['cluster', 'classification', 'neighbor']:
                 score.define_bias_space(embeddings)
