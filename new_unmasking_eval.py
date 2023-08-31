@@ -233,7 +233,6 @@ def create_defining_embeddings_from_templates(bert, template_config):
                     cur_attr = attr + str(i)
                     sent2 = sent2.replace(cur_attr, template_config[attr][i][k])
                 group_versions.append(sent2)
-
             emb = bert.embed(group_versions)
             emb_dict[attr].append(emb)
 
@@ -243,11 +242,11 @@ def create_defining_embeddings_from_templates(bert, template_config):
 def report_bias_scores(bert: BertHuggingfaceMLM, defining_emb: dict, data_test: list, target_words: list,
                        groups_per_attr: dict, target_stat_df: pd.DataFrame):
 
-    bias_score = [SAME(), MAC(), DirectBias(), RIPA(), WEAT(), GeneralizedWEAT(), ClusterTest(), ClassificationTest(),
-                  NeighborTest(k=100), WEAT(), GeneralizedWEAT(), ClusterTest(), ClassificationTest(),
-                  NeighborTest(k=100)]
-    score_names = ["SAME", "MAC", "DirectBias", "RIPA", "WEAT", "GWEAT", "cluster", "classification", "neighbor",
-                   "WEAT_i", "GWEAT_i", "cluster_i", "classification_i", "neighbor_i"]
+    bias_score = [SAME(), MAC(), DirectBias(), RIPA(), WEAT(), GeneralizedWEAT(), WEAT(), GeneralizedWEAT()]#,
+#                  ClusterTest(), ClassificationTest(), NeighborTest(k=100), ClusterTest(), ClassificationTest(),
+#                  NeighborTest(k=100)]
+    score_names = ["SAME", "MAC", "DirectBias", "RIPA", "WEAT", "GWEAT", "WEAT_i", "GWEAT_i"]#, "cluster", "classification", "neighbor",
+#                   "cluster_i", "classification_i", "neighbor_i"]
     groups = list(target_stat_df.index)
 
     # lookup for the majority group of each target by attribute
