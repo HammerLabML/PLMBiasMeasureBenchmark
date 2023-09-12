@@ -170,22 +170,26 @@ class CrowSPairsDataset(BiasDataset):
                     break
             masked_sent = tokenizer.decode(masked_tokens[1:first_pad-1])#.replace('[PAD]', '').replace('[SEP
             neutral_samples.append(masked_sent)
-            
+        
         group_labels = [sample['group'] if sample['label'] == 0 else sample['group_cf'] for sample in self.sel_data]
         group_ids = [self.groups_by_bias_types[self.sel_bias_type].index(label) for label in group_labels]
         return neutral_samples, group_ids
         
     def compute_PLL(self, mlm: BertHuggingfaceMLM):
-        if self.pll_cur_bias_type == self.sel_bias_type and (len(self.pll_stereo_more)+len(self.pll_anti_more)) == len(self.sel_data) and self.last_mlm_name == mlm.model.config._name_or_path:
+        if self.pll_cur_bias_type == self.sel_bias_type and len(self.pll_more) == len(self.sel_data) and self.last_mlm_name == mlm.model.config._name_or_path:
             return
         pllBias = PLLBias(mlm.model, mlm.tokenizer, mlm.batch_size)
         
-        stereo_more = [sample['text'] for sample in self.sel_data if sample['label'] == self.labels.index('stereo')]
-        stereo_less = [sample['counterfactual'] for sample in self.sel_data if sample['label'] == self.labels.index('stereo')]
-        antistereo_more = [sample['text'] for sample in self.sel_data if sample['label'] == self.labels.index('antistereo')]
-        antistereo_less = [sample['counterfactual'] for sample in self.sel_data if sample['label'] == self.labels.index('antistereo')]
-        self.pll_stereo_more, self.pll_stereo_less = pllBias.compare_sentence_likelihood(stereo_more, stereo_less)
-        self.pll_anti_more, self.pll_anti_less = pllBias.compare_sentence_likelihood(antistereo_more, antistereo_less)
+        #stereo_more = [sample['text'] for sample in self.sel_data if sample['label'] == self.labels.index('stereo')]
+        #stereo_less = [sample['counterfactual'] for sample in self.sel_data if sample['label'] == self.labels.index('stereo')]
+        #antistereo_more = [sample['text'] for sample in self.sel_data if sample['label'] == self.labels.index('antistereo')]
+        #antistereo_less = [sample['counterfactual'] for sample in self.sel_data if sample['label'] == self.labels.index('antistereo')]
+        #self.pll_stereo_more, self.pll_stereo_less = pllBias.compare_sentence_likelihood(stereo_more, stereo_less)
+        #self.pll_anti_more, self.pll_anti_less = pllBias.compare_sentence_likelihood(antistereo_more, antistereo_less)
+        sent_more = [sample['text'] for sample in self.sel_data]
+        sent_less = [sample['counterfactual'] for sample in self.sel_data]
+        self.pll_more, self.pll_less = pllBias.compare_sentence_likelihood(sent_more, sent_less)
+        
         self.pll_cur_bias_type = self.sel_bias_type
         self.last_mlm_name = mlm.model.config._name_or_path
     
@@ -193,16 +197,29 @@ class CrowSPairsDataset(BiasDataset):
         self.compute_PLL(mlm)
         
         self.individual_biases = []
-        for i in range(len(self.pll_stereo_more)):
-            self.individual_biases.append(self.pll_stereo_more[i]-self.pll_stereo_less[i])
-        for i in range(len(self.pll_anti_more)):
-            self.individual_biases.append(self.pll_anti_less[i]-self.pll_anti_more[i])
+        for i in range(len(self.pll_more)):
+            if self.labels[self.sel_data[i]['label']] == 'stereotype':
+                self.individual_biases.append(self.pll_more[i]-self.pll_less[i])
+            else: #antistereo
+                self.individual_biases.append(self.pll_less[i]-self.pll_more[i])
+                
+#        for i in range(len(self.pll_stereo_more)):
+#            self.individual_biases.append(self.pll_stereo_more[i]-self.pll_stereo_less[i])
+#        for i in range(len(self.pll_anti_more)):
+#            self.individual_biases.append(self.pll_anti_less[i]-self.pll_anti_more[i])
         
     def compute_group_bias(self, mlm: BertHuggingfaceMLM):
         self.compute_PLL(mlm)
         
-        stereo_more_likely = [1 if self.pll_stereo_more[i] > self.pll_stereo_less[i] else 0 for i in range(len(self.pll_stereo_less))]
-        stereo_more_likely += [1 if self.pll_anti_less[i] > self.pll_anti_more[i] else 0 for i in range(len(self.pll_anti_more))]
+        stereo_more_likely = []
+        for i in range(len(self.pll_more)):
+            is_stereo = self.labels[self.sel_data[i]['label']] == 'stereotype'
+            if (is_stereo and self.pll_more[i] > self.pll_less[i]) or (not is_stereo and self.pll_less[i] > self.pll_more[i]):
+                stereo_more_likely.append(1)
+            else:
+                stereo_more_likely.append(0)
+        #stereo_more_likely = [1 if self.pll_stereo_more[i] > self.pll_stereo_less[i] else 0 for i in range(len(self.pll_stereo_less))]
+        #stereo_more_likely += [1 if self.pll_anti_less[i] > self.pll_anti_more[i] else 0 for i in range(len(self.pll_anti_more))]
         
         self.bias_score = sum(stereo_more_likely)/len(stereo_more_likely)
         
