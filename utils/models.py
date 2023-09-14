@@ -8,6 +8,9 @@ from torch.utils.data import DataLoader, TensorDataset
 import torch.nn.functional as F
 from sklearn.decomposition import PCA
 from embedding import BertHuggingfaceMLM
+import random
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score
 
 class Debias():
 
@@ -60,10 +63,11 @@ class Debias():
         print(self.pca.explained_variance_ratio_[:20])
 
     def predict(self, emb, k=3):
+        dtype = emb.dtype
         print("Debias: predict with k="+str(k))
         X = self.normalize(emb)
         debiased = [self.dropspace(X[i,:], self.pca.components_[:k]) for i in range(X.shape[0])]
-        return self.normalize(np.asarray(debiased))
+        return self.normalize(np.asarray(debiased, dtype=dtype))
     
 
 class CLFHead(torch.nn.Module):
@@ -118,7 +122,7 @@ class CustomModel():
     def __init__(self, parameters: dict, model: torch.nn.Module):
         self.model = model
         self.batch_size = parameters['batch_size']
-        self.criterion = parameters['criterion']
+        self.criterion = parameters['criterion']()
         self.lr = parameters['lr']
         self.optimizer = parameters['optimizer'](params=self.model.parameters(), lr=self.lr)
         
@@ -126,7 +130,7 @@ class CustomModel():
             self.model = self.model.to('cuda')
 
     def fit(self, X, y, epochs=2):        
-        dataset = TensorDataset(torch.tensor(X), F.one_hot(torch.tensor(y)).float())
+        dataset = TensorDataset(torch.tensor(X), torch.tensor(y))#F.one_hot(torch.tensor(y)).float())
         loader = DataLoader(dataset, batch_size=self.batch_size)
         
         self.model.train()
@@ -193,12 +197,31 @@ class DebiasPipeline():
     def __init__(self, parameters: dict, embedder: BertHuggingfaceMLM, head: torch.nn.Module, debias = False):
         self.clf = CustomModel(parameters, head)
         self.debiaser = None
+        self.debias_k = None
         if debias:
             self.debiaser = Debias()
-        self.debias_k = parameters['debias_k']
+            self.debias_k = parameters['debias_k']
         self.embedder = embedder
+        # threshold for classification:
+        self.theta = 0.5
         
-    def fit(self, X: list, y: list, group_label: list = None, epochs=2):
+    def upsample_defining_embeddings(self, emb_per_group):
+        upsampled = []
+        max_len = 0
+        for emb_list in emb_per_group:
+            if len(emb_list) > max_len:
+                max_len = len(emb_list)
+        
+        
+        for emb_list in emb_per_group:
+            new_list = emb_list.copy()
+            while len(new_list) < max_len:
+                add_sample = random.choice(emb_list)
+                new_list.append(add_sample)
+            upsampled.append(new_list)
+        return upsampled
+        
+    def fit(self, X: list, y: list, group_label: list = None, epochs=2, optimize_theta=False):
         print("embed samples...")
         emb = self.embedder.embed(X)
         
@@ -208,11 +231,31 @@ class DebiasPipeline():
             n_groups = max(group_label)+1
             for group in range(n_groups):
                 emb_per_group.append([e for i, e in enumerate(emb) if group_label[i] == group])
+            
+            # upsample to have equal sized groups
+            emb_per_group = self.upsample_defining_embeddings(emb_per_group)
+            
             self.debiaser.fit(emb_per_group)
             emb = self.debiaser.predict(emb, self.debias_k)
         
         print("fit clf head...")
-        head.fit(emb, y, epochs=epochs)
+        if optimize_theta:
+            emb_train, emb_val, y_train, y_val = train_test_split(emb, y, test_size=0.1, random_state=0)
+            self.clf.fit(emb_train, y_train, epochs=epochs)
+        
+            print("optimize classification threshold...")
+            pred = self.clf.predict(emb_val)
+            best_score = 0
+            for theta in np.arange(0.2, 1.0, 0.05):
+                y_pred = (np.array(pred) >= theta).astype(int)
+                score = accuracy_score(y_val, y_pred)
+                if score > best_score:
+                    self.theta = theta
+                    best_score = score
+            
+        else:
+            self.clf.fit(emb, y, epochs=epochs)
+            self.theta = 0.5
     
     def predict(self, X: list):
         emb = self.embedder.embed(X)
@@ -220,5 +263,6 @@ class DebiasPipeline():
         if self.debiaser is not None and self.debiaser.pca is not None:
             emb = self.debiaser.predict(emb, k=self.debias_k)
         
-        pred = head.predict(emb)
-        return pred
+        pred = self.clf.predict(emb)
+        y_pred = (np.array(pred) >= self.theta).astype(int)
+        return y_pred

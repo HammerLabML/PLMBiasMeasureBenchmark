@@ -356,6 +356,27 @@ class BiosDataset(BiasDataset):
         
         self.eval_data = self.data_folds[fold_id]
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
+        
+    def get_neutral_samples_by_masking(self, attributes, split='train'):
+        if split == 'train':
+            data = self.train_data
+        elif split == 'eval':
+            data = self.eval_data
+        else:
+            return []
+        
+        neutral_sent = []
+        labels = []
+        groups = []
+        for sample in data:
+            bio = sample['counterfactual'].lower()
+            for attr in attributes[sample['group']]:
+                bio = bio.replace(' '+attr+' ', '_')
+            neutral_sent.append(bio)
+            labels.append(sample['label'])
+            groups.append(sample['group'])
+            
+        return neutral_sent, labels, groups
     
     def individual_bias(self, sample: dict):
         pass
