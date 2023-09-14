@@ -6,6 +6,65 @@ import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 import torch.nn.functional as F
+from sklearn.decomposition import PCA
+from embedding import BertHuggingfaceMLM
+
+class Debias():
+
+    def __init__(self):
+        self.pca = None
+        self.n_attributes = 1
+
+    def sub_mean(self, pairs):
+        means = np.mean(pairs, axis=0)
+        for i in range(means.shape[0]):
+            for j in range(pairs.shape[0]):
+                pairs[j,i,:] = pairs[j,i,:] - means[i]
+        return pairs
+
+    def flatten(self, pairs):
+        flattened = []
+        for pair in pairs:
+            for vec in pair:
+                flattened.append(vec)
+        return flattened
+
+    def drop(self, u, v):
+        return u - v * u.dot(v) / v.dot(v)
+
+    def get_bias(self, u, V):
+        norm_sqrd = np.sum(V * V, axis=-1)
+        vecs = np.divide(V @ u, norm_sqrd)[:, None] * V
+        subspace = np.sum(vecs, axis=0)
+        return subspace
+
+    def dropspace(self, u, V):
+        return u - self.get_bias(u, V)
+
+    def normalize(self, vectors: np.ndarray):
+        norms = np.apply_along_axis(np.linalg.norm, 1, vectors)
+        vectors = vectors / norms[:, np.newaxis]
+        return np.asarray(vectors)
+
+    def fit(self, embedding_tuples: list):
+        self.n_attributes = len(embedding_tuples)
+        
+        embedding_tuples = self.normalize(np.asarray(embedding_tuples))
+        assert embedding_tuples.shape[0] < embedding_tuples.shape[1], "the number of samples should be larger than the number of bias attributes"
+        print("fit pca for debiasing")
+        encoded_pairs = self.sub_mean(embedding_tuples)
+        flattened = self.flatten(encoded_pairs)
+        self.pca = PCA()
+        self.pca.fit(flattened)
+        print("explained variance of the first 20 principal components:")
+        print(self.pca.explained_variance_ratio_[:20])
+
+    def predict(self, emb, k=3):
+        print("Debias: predict with k="+str(k))
+        X = self.normalize(emb)
+        debiased = [self.dropspace(X[i,:], self.pca.components_[:k]) for i in range(X.shape[0])]
+        return self.normalize(np.asarray(debiased))
+    
 
 class CLFHead(torch.nn.Module):
     
@@ -24,6 +83,7 @@ class CLFHead(torch.nn.Module):
         x = self.softmax(x)
         return x
     
+    
 class SimpleCLFHead(torch.nn.Module): # this copies the BertForSequenceClassificationHead
     
     def __init__(self, input_size: int, output_size: int, dropout_prob=0.1):
@@ -39,6 +99,7 @@ class SimpleCLFHead(torch.nn.Module): # this copies the BertForSequenceClassific
         x = self.softmax(x)
         return x
     
+    
 class MLMHead(torch.nn.Module):
     def __init__(self, input_size: int, pretrained_head: torch.nn.Module):
         super().__init__()
@@ -51,7 +112,7 @@ class MLMHead(torch.nn.Module):
         x = self.softmax(x)
         return x
 
-# TODO: also want sklearn clf?
+    
 class CustomModel():
 
     def __init__(self, parameters: dict, model: torch.nn.Module):
@@ -59,7 +120,7 @@ class CustomModel():
         self.batch_size = parameters['batch_size']
         self.criterion = parameters['criterion']
         self.lr = parameters['lr']
-        self.optimizer = parameters['optimizer'](params=model.parameters(), lr=self.lr)
+        self.optimizer = parameters['optimizer'](params=self.model.parameters(), lr=self.lr)
         
         if torch.cuda.is_available():
             self.model = self.model.to('cuda')
@@ -126,3 +187,38 @@ class CustomModel():
         torch.cuda.empty_cache()
         return np.vstack(predictions)
     
+
+class DebiasPipeline():
+    
+    def __init__(self, parameters: dict, embedder: BertHuggingfaceMLM, head: torch.nn.Module, debias = False):
+        self.clf = CustomModel(parameters, head)
+        self.debiaser = None
+        if debias:
+            self.debiaser = Debias()
+        self.debias_k = parameters['debias_k']
+        self.embedder = embedder
+        
+    def fit(self, X: list, y: list, group_label: list = None, epochs=2):
+        print("embed samples...")
+        emb = self.embedder.embed(X)
+        
+        if self.debiaser is not None and group_label is not None:
+            print("fit and apply debiasing...")
+            emb_per_group = []
+            n_groups = max(group_label)+1
+            for group in range(n_groups):
+                emb_per_group.append([e for i, e in enumerate(emb) if group_label[i] == group])
+            self.debiaser.fit(emb_per_group)
+            emb = self.debiaser.predict(emb, self.debias_k)
+        
+        print("fit clf head...")
+        head.fit(emb, y, epochs=epochs)
+    
+    def predict(self, X: list):
+        emb = self.embedder.embed(X)
+        
+        if self.debiaser is not None and self.debiaser.pca is not None:
+            emb = self.debiaser.predict(emb, k=self.debias_k)
+        
+        pred = head.predict(emb)
+        return pred
