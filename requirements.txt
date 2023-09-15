@@ -5,3 +5,4 @@ seaborn
 ipywidgets
 datasets
 tqdm
+optimum

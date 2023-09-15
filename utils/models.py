@@ -7,10 +7,14 @@ from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 import torch.nn.functional as F
 from sklearn.decomposition import PCA
-from embedding import BertHuggingfaceMLM
+from embedding import BertHuggingface
 import random
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
+
+
+optimizer = {'RMSprop': torch.optim.RMSprop, 'Adam': torch.optim.Adam}
+criterions = {'BCEWithLogitsLoss': torch.nn.BCEWithLogitsLoss, 'MultiLabelSoftMarginLoss': torch.nn.MultiLabelSoftMarginLoss}
 
 class Debias():
 
@@ -120,11 +124,13 @@ class MLMHead(torch.nn.Module):
 class CustomModel():
 
     def __init__(self, parameters: dict, model: torch.nn.Module):
+        assert parameters['optimizer'] in optimizer.keys(), "optimizer "+parameters['optimizer']+" not in the list"
+        assert parameters['criterion'] in criterions.keys(), "criterion "+parameters['criterion']+" not in the list"
         self.model = model
         self.batch_size = parameters['batch_size']
-        self.criterion = parameters['criterion']()
+        self.criterion = criterions[parameters['criterion']]()
         self.lr = parameters['lr']
-        self.optimizer = parameters['optimizer'](params=self.model.parameters(), lr=self.lr)
+        self.optimizer = optimizer[parameters['optimizer']](params=self.model.parameters(), lr=self.lr)
         
         if torch.cuda.is_available():
             self.model = self.model.to('cuda')
@@ -201,7 +207,6 @@ class DebiasPipeline():
         if debias:
             self.debiaser = Debias()
             self.debias_k = parameters['debias_k']
-        #self.embedder = embedder
         # threshold for classification:
         self.theta = 0.5
         
@@ -221,8 +226,7 @@ class DebiasPipeline():
             upsampled.append(new_list)
         return upsampled
         
-    def fit(self, emb: np.ndarray, y: np.asarray, group_label: list = None, epochs=2, optimize_theta=False):
-        
+    def fit(self, emb: np.ndarray, y: np.ndarray, group_label: list = None, epochs=2, optimize_theta=False):        
         if self.debiaser is not None and group_label is not None:
             print("fit and apply debiasing...")
             emb_per_group = []
@@ -250,14 +254,14 @@ class DebiasPipeline():
                 if score > best_score:
                     self.theta = theta
                     best_score = score
+            print("use theta="+str(self.theta)+" which achieved accurcay: "+str(best_score))
             
         else:
             print(type(emb))
             self.clf.fit(emb, y, epochs=epochs)
             self.theta = 0.5
     
-    def predict(self, emb):
-        
+    def predict(self, emb: np.ndarray):
         if self.debiaser is not None and self.debiaser.pca is not None:
             emb = self.debiaser.predict(emb, k=self.debias_k)
         

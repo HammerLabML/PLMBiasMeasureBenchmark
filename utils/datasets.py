@@ -326,6 +326,7 @@ class BiosDataset(BiasDataset):
         return one_hot
             
     def transform_data(self, data):
+        data = shuffle(data, random_state=0)
         self.data = []
         idx = 0
         for sample in data:
@@ -344,7 +345,6 @@ class BiosDataset(BiasDataset):
                           'bias_type': 'gender', 'group': group}
             self.data.append(new_sample)
             idx += 1
-        self.data = shuffle(self.data, random_state=0)
             
     def sel_attributes(self, bias_type: str) -> bool:
         if not bias_type in self.bias_types:

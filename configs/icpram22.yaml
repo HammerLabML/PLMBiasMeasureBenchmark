@@ -1,5 +1,5 @@
 objective: MLM
-results_dir: results/icpram22
+results_dir: results/icpram_same
 template_file: data/multi_attr_MLM_large.yaml
 target_words: data/professions_v2.json
 random_seed: 42
