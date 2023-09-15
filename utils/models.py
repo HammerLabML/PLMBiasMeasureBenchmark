@@ -194,14 +194,14 @@ class CustomModel():
 
 class DebiasPipeline():
     
-    def __init__(self, parameters: dict, embedder: BertHuggingfaceMLM, head: torch.nn.Module, debias = False):
+    def __init__(self, parameters: dict, head: torch.nn.Module, debias = False):
         self.clf = CustomModel(parameters, head)
         self.debiaser = None
         self.debias_k = None
         if debias:
             self.debiaser = Debias()
             self.debias_k = parameters['debias_k']
-        self.embedder = embedder
+        #self.embedder = embedder
         # threshold for classification:
         self.theta = 0.5
         
@@ -221,9 +221,7 @@ class DebiasPipeline():
             upsampled.append(new_list)
         return upsampled
         
-    def fit(self, X: list, y: list, group_label: list = None, epochs=2, optimize_theta=False):
-        print("embed samples...")
-        emb = self.embedder.embed(X)
+    def fit(self, emb, y: list, group_label: list = None, epochs=2, optimize_theta=False):
         
         if self.debiaser is not None and group_label is not None:
             print("fit and apply debiasing...")
@@ -257,8 +255,7 @@ class DebiasPipeline():
             self.clf.fit(emb, y, epochs=epochs)
             self.theta = 0.5
     
-    def predict(self, X: list):
-        emb = self.embedder.embed(X)
+    def predict(self, emb):
         
         if self.debiaser is not None and self.debiaser.pca is not None:
             emb = self.debiaser.predict(emb, k=self.debias_k)

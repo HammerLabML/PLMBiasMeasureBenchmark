@@ -327,6 +327,7 @@ class BiosDataset(BiasDataset):
             
     def transform_data(self, data):
         self.data = []
+        idx = 0
         for sample in data:
             if not sample['valid']:
                 continue
@@ -339,9 +340,10 @@ class BiosDataset(BiasDataset):
             if sample['gender'] == 'F':
                 group = self.sel_groups.index('female')
 
-            new_sample = {'id': sample['Unnamed: 0'], 'text': sample['raw'][sample['start_pos']:], 'counterfactual': sample['bio'], 'label': label, 
+            new_sample = {'id': idx, 'text': sample['raw'][sample['start_pos']:], 'counterfactual': sample['bio'], 'label': label, 
                           'bias_type': 'gender', 'group': group}
             self.data.append(new_sample)
+            idx += 1
         self.data = shuffle(self.data, random_state=0)
             
     def sel_attributes(self, bias_type: str) -> bool:
@@ -357,18 +359,11 @@ class BiosDataset(BiasDataset):
         self.eval_data = self.data_folds[fold_id]
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
         
-    def get_neutral_samples_by_masking(self, attributes, split='train'):
-        if split == 'train':
-            data = self.train_data
-        elif split == 'eval':
-            data = self.eval_data
-        else:
-            return []
-        
+    def get_neutral_samples_by_masking(self, attributes):        
         neutral_sent = []
         labels = []
         groups = []
-        for sample in data:
+        for sample in self.sel_data:
             bio = sample['counterfactual'].lower()
             for attr in attributes[sample['group']]:
                 bio = bio.replace(' '+attr+' ', '_')
@@ -384,14 +379,14 @@ class BiosDataset(BiasDataset):
         # BIOS:
         # ?? counterfactual prediction diff/ bool does prediction change
     
-    def group_bias(self, prediction_wrapper: Callable):
-        pass
+    def group_bias(self, prediction_wrapper: Callable, emb):
+        assert len(emb) == len(self.eval_data)
         
         y_true = [sample['label'] for sample in self.eval_data]
         groups = [sample['group'] for sample in self.eval_data]
-        sent = [sample['text'] for sample in self.eval_data]
+        #sent = [sample['text'] for sample in self.eval_data]
         
-        y_pred = prediction_wrapper(sent)
+        y_pred = prediction_wrapper(emb)
         
         gaps = gap_score_one_hot(y_pred, np.asarray(y_true), groups)
         self.bias_score = gaps # class-wise gaps
