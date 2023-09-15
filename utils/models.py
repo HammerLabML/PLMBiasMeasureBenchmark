@@ -221,7 +221,7 @@ class DebiasPipeline():
             upsampled.append(new_list)
         return upsampled
         
-    def fit(self, emb, y: list, group_label: list = None, epochs=2, optimize_theta=False):
+    def fit(self, emb: np.ndarray, y: np.asarray, group_label: list = None, epochs=2, optimize_theta=False):
         
         if self.debiaser is not None and group_label is not None:
             print("fit and apply debiasing...")
@@ -252,6 +252,7 @@ class DebiasPipeline():
                     best_score = score
             
         else:
+            print(type(emb))
             self.clf.fit(emb, y, epochs=epochs)
             self.theta = 0.5
     
