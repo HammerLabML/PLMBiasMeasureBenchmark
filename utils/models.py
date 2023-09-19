@@ -135,8 +135,11 @@ class CustomModel():
         if torch.cuda.is_available():
             self.model = self.model.to('cuda')
 
-    def fit(self, X, y, epochs=2):        
-        dataset = TensorDataset(torch.tensor(X), torch.tensor(y))#F.one_hot(torch.tensor(y)).float())
+    def fit(self, X, y, epochs=2, weights=None):
+        if weights is not None:
+            dataset = TensorDataset(torch.tensor(X), torch.tensor(y), torch.tensor(weights))
+        else:
+            dataset = TensorDataset(torch.tensor(X), torch.tensor(y))#F.one_hot(torch.tensor(y)).float())
         loader = DataLoader(dataset, batch_size=self.batch_size)
         
         self.model.train()
@@ -149,9 +152,15 @@ class CustomModel():
                 if torch.cuda.is_available():
                     X = batch[0].to('cuda')
                     y = batch[1].to('cuda')
+                    if weights is not None:
+                        w = batch[2].to('cuda')
                 
                 pred = self.model(X)
+                
                 loss = self.criterion(pred, y)
+                if weights is not None:
+                    loss = loss * w
+                    loss = loss.mean()
                 loss.backward()
 
                 self.optimizer.step()
@@ -166,9 +175,13 @@ class CustomModel():
                     pred.to('cpu')
                     X = X.to('cpu')
                     y = y.to('cpu')
+                    
                 del pred
                 del X
                 del y
+                if weights is not None:
+                    w = w.to('cpu')
+                    del w
 
         self.model.eval()
         torch.cuda.empty_cache()     
@@ -226,7 +239,7 @@ class DebiasPipeline():
             upsampled.append(new_list)
         return upsampled
         
-    def fit(self, emb: np.ndarray, y: np.ndarray, group_label: list = None, epochs=2, optimize_theta=False):        
+    def fit(self, emb: np.ndarray, y: np.ndarray, group_label: list = None, epochs=2, optimize_theta=False, weights=None):        
         if self.debiaser is not None and group_label is not None:
             print("fit and apply debiasing...")
             emb_per_group = []
@@ -242,8 +255,12 @@ class DebiasPipeline():
         
         print("fit clf head...")
         if optimize_theta:
-            emb_train, emb_val, y_train, y_val = train_test_split(emb, y, test_size=0.1, random_state=0)
-            self.clf.fit(emb_train, y_train, epochs=epochs)
+            if weights is not None:
+                emb_train, emb_val, y_train, y_val, w_train, w_val = train_test_split(emb, y, weights, test_size=0.1, random_state=0)
+            else:
+                w_train = None
+                emb_train, emb_val, y_train, y_val = train_test_split(emb, y, test_size=0.1, random_state=0)
+            self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
         
             print("optimize classification threshold...")
             pred = self.clf.predict(emb_val)

@@ -10,6 +10,7 @@ from transformers import PreTrainedTokenizer
 from unmasking_bias import PLLBias, get_token_diffs
 
 from sklearn.utils import shuffle
+from sklearn.metrics import roc_auc_score
 import itertools
 from collections.abc import Callable
 import numpy as np
@@ -228,12 +229,13 @@ class CrowSPairsDataset(BiasDataset):
 ########        CLF Bias Measures       ########
 ################################################
 
-def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: list):
+def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     assert len(y_pred.shape) == 1
+    assert y_pred.shape == y_true.shape
     
-    n_groups = max(groups)+1
+    n_groups = np.max(groups)+1
     n_samples = y_pred.shape[0]
-    n_classes = max(y_pred)+1
+    n_classes = np.max(y_pred)+1
     
     gaps = []
     for c in range(n_classes):
@@ -254,9 +256,10 @@ def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: list)
             gaps.append(np.var(group_tp))
     return gaps
 
-def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: list):
+def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     assert len(y_pred.shape) == 2
-    n_groups = max(groups)+1
+    assert y_pred.shape == y_true.shape
+    n_groups = np.max(groups)+1
     n_samples = y_pred.shape[0]
     n_classes = y_pred.shape[1]
     
@@ -279,10 +282,55 @@ def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: list):
     return gaps
 
 
-# TODO: ROC AUC based metrics
-
+def compute_AUC(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
+    assert len(y_pred.shape) == 2 # expect one hot encoded labels
+    assert y_pred.shape == y_true.shape
+    
+    n_groups = np.max(groups)+1
+    n_samples = y_pred.shape[0]
+    n_classes = y_pred.shape[1]
+    
+    class_aucs = []
+    class_bpsns = []
+    class_bnsps = []
+    for c in range(n_classes):
+        y_pred_c = y_pred[:,c]
+        y_true_c = y_true[:,c]
         
-        
+        subgroup_aucs = []
+        bpsns = []
+        bnsps = []
+        for g in range(n_groups):
+            # subgroup AUC
+            y_pred_cg = [y_pred_c[i] for i in range(n_samples) if groups[i] == g]
+            y_true_cg = [y_true_c[i] for i in range(n_samples) if groups[i] == g]
+            subgroup_auc = roc_auc_score(np.asarray(y_true_cg), np.asarray(y_pred_cg))
+            subgroup_aucs.append(subgroup_auc)
+            
+            # background positive, subgroup negative
+            y_pred_bp = [y_pred_c[i] for i in range(n_samples) if (groups[i] != g and y_true_c[i] == 1)]
+            y_true_bp = [1 for i in range(n_samples) if (groups[i] != g and y_true_c[i] == 1)]
+            y_pred_sn = [y_pred_c[i] for i in range(n_samples) if (groups[i] == g and y_true_c[i] == 0)]
+            y_true_sn = [0 for i in range(n_samples) if (groups[i] == g and y_true_c[i] == 0)]
+            bpsn = roc_auc_score(np.asarray(y_true_bp+y_true_sn), np.asarray(y_pred_bp+y_pred_sn))
+            bpsns.append(bpsn)
+            
+            # background negative, subgroup positive
+            y_pred_bn = [y_pred_c[i] for i in range(n_samples) if (groups[i] != g and y_true_c[i] == 0)]
+            y_true_bn = [0 for i in range(n_samples) if (groups[i] != g and y_true_c[i] == 0)]
+            y_pred_sp = [y_pred_c[i] for i in range(n_samples) if (groups[i] == g and y_true_c[i] == 1)]
+            y_true_sp = [1 for i in range(n_samples) if (groups[i] == g and y_true_c[i] == 1)]
+            bnsp = roc_auc_score(np.asarray(y_true_bn+y_true_sp), np.asarray(y_pred_bn+y_pred_sp))
+            bnsps.append(bnsp)
+            
+        # take the variance of group-wise scores (in case there are >2 groups)
+        class_aucs.append(np.var(subgroup_aucs))
+        class_bpsns.append(np.var(bpsns))
+        class_bnsps.append(np.var(bpsns))
+    
+    return class_aucs, class_bpsns, class_bnsps
+            
+            
 ################################################
 ###########       BIOS dataset       ###########
 ################################################
@@ -316,6 +364,10 @@ class BiosDataset(BiasDataset):
         
         self.train_data = []
         self.eval_data = []
+        
+        self.subgroup_auc = []
+        self.bpsn = []
+        self.bnsp = []
         
     def titles_to_one_hot(self, titles: list):
         one_hot = np.zeros(len(self.labels))
@@ -382,19 +434,17 @@ class BiosDataset(BiasDataset):
     def group_bias(self, prediction_wrapper: Callable, emb):
         assert len(emb) == len(self.eval_data)
         
-        y_true = [sample['label'] for sample in self.eval_data]
-        groups = [sample['group'] for sample in self.eval_data]
+        y_true = np.asarray([sample['label'] for sample in self.eval_data])
+        groups = np.asarray([sample['group'] for sample in self.eval_data])
         #sent = [sample['text'] for sample in self.eval_data]
         
         y_pred = prediction_wrapper(emb)
         
-        gaps = gap_score_one_hot(y_pred, np.asarray(y_true), groups)
+        gaps = gap_score_one_hot(y_pred, y_true, groups)
         self.bias_score = gaps # class-wise gaps
         
-    def roc_auc_bias(self):
-        pass
-        #TODO
-        
+        # AUC
+        self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
         
         
 
@@ -417,8 +467,4 @@ class JigsawDataset(BiasDataset):
     
     def group_bias(self):
         pass
-        # maybe also GAP-like score?
-        
-    def roc_auc_bias(self):
-        pass
-        #TODO
+        # GAP + AUC
