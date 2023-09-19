@@ -10,7 +10,7 @@ from sklearn.decomposition import PCA
 from embedding import BertHuggingface
 import random
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 
 optimizer = {'RMSprop': torch.optim.RMSprop, 'Adam': torch.optim.Adam}
@@ -123,17 +123,25 @@ class MLMHead(torch.nn.Module):
     
 class CustomModel():
 
-    def __init__(self, parameters: dict, model: torch.nn.Module):
+    def __init__(self, parameters: dict, model: torch.nn.Module, class_weights=None):
         assert parameters['optimizer'] in optimizer.keys(), "optimizer "+parameters['optimizer']+" not in the list"
         assert parameters['criterion'] in criterions.keys(), "criterion "+parameters['criterion']+" not in the list"
         self.model = model
         self.batch_size = parameters['batch_size']
-        self.criterion = criterions[parameters['criterion']]()
-        self.lr = parameters['lr']
-        self.optimizer = optimizer[parameters['optimizer']](params=self.model.parameters(), lr=self.lr)
         
         if torch.cuda.is_available():
             self.model = self.model.to('cuda')
+        
+        if class_weights is not None:
+            class_weights = torch.tensor(class_weights)
+            if torch.cuda.is_available():
+                class_weights = class_weights.to('cuda')
+            self.criterion = criterions[parameters['criterion']](pos_weight=class_weights)
+        else:
+            self.criterion = criterions[parameters['criterion']]()
+        self.lr = parameters['lr']
+        self.optimizer = optimizer[parameters['optimizer']](params=self.model.parameters(), lr=self.lr)
+        
 
     def fit(self, X, y, epochs=2, weights=None):
         if weights is not None:
@@ -213,8 +221,8 @@ class CustomModel():
 
 class DebiasPipeline():
     
-    def __init__(self, parameters: dict, head: torch.nn.Module, debias = False):
-        self.clf = CustomModel(parameters, head)
+    def __init__(self, parameters: dict, head: torch.nn.Module, debias = False, validation_score='f1', class_weights=None):
+        self.clf = CustomModel(parameters, head, class_weights=class_weights)
         self.debiaser = None
         self.debias_k = None
         if debias:
@@ -222,6 +230,17 @@ class DebiasPipeline():
             self.debias_k = parameters['debias_k']
         # threshold for classification:
         self.theta = 0.5
+        self.validation_score = f1_score
+        if validation_score == 'recall':
+            print("using recall for validation step")
+            self.validation_score = recall_score
+        elif validation_score == 'precision':
+            print("using precision for validation step")
+            self.validation_score = precision_score
+        elif validation_score == 'f1':
+            print("using f1 score for validation step")
+        else:
+            print("validation score ", validation_score, " is not supported, using f1 (default) instead")
         
     def upsample_defining_embeddings(self, emb_per_group):
         upsampled = []
@@ -265,13 +284,22 @@ class DebiasPipeline():
             print("optimize classification threshold...")
             pred = self.clf.predict(emb_val)
             best_score = 0
+            # TODO: sample weights on validation set
             for theta in np.arange(0.2, 1.0, 0.05):
                 y_pred = (np.array(pred) >= theta).astype(int)
-                score = accuracy_score(y_val, y_pred)
+                score = self.validation_score(y_val, y_pred, average='weighted')
                 if score > best_score:
                     self.theta = theta
                     best_score = score
-            print("use theta="+str(self.theta)+" which achieved accurcay: "+str(best_score))
+            print("use theta="+str(self.theta)+" which achieves:")
+            y_pred = (np.array(pred) >= self.theta).astype(int)
+            print("recall\t= "+str(recall_score(y_val, y_pred, average='weighted')))
+            print("precision\t= "+str(precision_score(y_val, y_pred, average='weighted')))
+            print("f1\t= "+str(f1_score(y_val, y_pred, average='weighted')))
+            print("accuracy\t= "+str(accuracy_score(y_val, y_pred)))
+            
+            print("class-wise recall:")
+            print(recall_score(y_val, y_pred, average=None))
             
         else:
             print(type(emb))

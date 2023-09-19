@@ -442,9 +442,13 @@ class BiosDataset(BiasDataset):
         
         gaps = gap_score_one_hot(y_pred, y_true, groups)
         self.bias_score = gaps # class-wise gaps
+        print("GAPs:", self.bias_score)
         
         # AUC
         self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
+        print("subgroup AUC:", self.subgroup_auc)
+        print("BPSN:", self.bpsn)
+        print("BNSP:", self.bnsp)
         
         
 
