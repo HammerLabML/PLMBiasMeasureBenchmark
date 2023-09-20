@@ -82,13 +82,13 @@ class CLFHead(torch.nn.Module):
         self.linear1 = torch.nn.Linear(input_size, hidden_size)
         self.activation = torch.nn.ReLU()
         self.linear2 = torch.nn.Linear(hidden_size, output_size)
-        self.softmax = torch.nn.Softmax(dim=1)
+        self.sigmoid = torch.nn.Sigmoid()
         
     def forward(self, x):
         x = self.linear1(x)
         x = self.activation(x)
         x = self.linear2(x)
-        x = self.softmax(x)
+        x = self.sigmoid(x)
         return x
     
     
@@ -99,12 +99,12 @@ class SimpleCLFHead(torch.nn.Module): # this copies the BertForSequenceClassific
         self.input_size = input_size
         self.dropout = torch.nn.Dropout(dropout_prob)
         self.classifier = torch.nn.Linear(input_size, output_size)
-        self.softmax = torch.nn.Softmax(dim=1)
+        self.activation = torch.nn.Sigmoid()
         
     def forward(self, x):
         x = self.dropout(x)
         x = self.classifier(x)
-        x = self.softmax(x)
+        x = self.activation(x)
         return x
     
     
@@ -133,6 +133,7 @@ class CustomModel():
             self.model = self.model.to('cuda')
         
         if class_weights is not None:
+            print("use class weights")
             class_weights = torch.tensor(class_weights)
             if torch.cuda.is_available():
                 class_weights = class_weights.to('cuda')
@@ -148,12 +149,11 @@ class CustomModel():
             dataset = TensorDataset(torch.tensor(X), torch.tensor(y), torch.tensor(weights))
         else:
             dataset = TensorDataset(torch.tensor(X), torch.tensor(y))#F.one_hot(torch.tensor(y)).float())
-        loader = DataLoader(dataset, batch_size=self.batch_size)
+        loader = DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
         
         self.model.train()
         for epoch in range(epochs):
             loop = tqdm(loader, leave=True)
-            epoch_loss = 0
             for batch in loop:
                 self.optimizer.zero_grad()
                 
@@ -177,7 +177,6 @@ class CustomModel():
                 loop.set_postfix(loss=loss.item())
                 
                 loss = loss.detach().item()
-                epoch_loss += loss
 
                 if torch.cuda.is_available():
                     pred.to('cpu')
@@ -284,18 +283,18 @@ class DebiasPipeline():
             print("optimize classification threshold...")
             pred = self.clf.predict(emb_val)
             best_score = 0
-            # TODO: sample weights on validation set
-            for theta in np.arange(0.2, 1.0, 0.05):
+            for theta in np.arange(0.3, 0.7, 0.05):
                 y_pred = (np.array(pred) >= theta).astype(int)
                 score = self.validation_score(y_val, y_pred, average='weighted')
-                if score > best_score:
+                class_wise_recall = recall_score(y_val, y_pred, average=None)
+                if score > best_score and np.min(class_wise_recall) > 0:
                     self.theta = theta
                     best_score = score
             print("use theta="+str(self.theta)+" which achieves:")
             y_pred = (np.array(pred) >= self.theta).astype(int)
-            print("recall\t= "+str(recall_score(y_val, y_pred, average='weighted')))
+            print("recall\t\t= "+str(recall_score(y_val, y_pred, average='weighted')))
             print("precision\t= "+str(precision_score(y_val, y_pred, average='weighted')))
-            print("f1\t= "+str(f1_score(y_val, y_pred, average='weighted')))
+            print("f1\t\t= "+str(f1_score(y_val, y_pred, average='weighted')))
             print("accuracy\t= "+str(accuracy_score(y_val, y_pred)))
             
             print("class-wise recall:")
