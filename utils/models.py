@@ -7,7 +7,7 @@ from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
 import torch.nn.functional as F
 from sklearn.decomposition import PCA
-from embedding import BertHuggingface
+from embedding import BertHuggingface, BertHuggingfaceMLM
 import random
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
@@ -106,19 +106,6 @@ class SimpleCLFHead(torch.nn.Module): # this copies the BertForSequenceClassific
         x = self.classifier(x)
         x = self.activation(x)
         return x
-    
-    
-class MLMHead(torch.nn.Module):
-    def __init__(self, input_size: int, pretrained_head: torch.nn.Module):
-        super().__init__()
-        self.input_size = input_size
-        self.base_head = pretrained_head
-        self.softmax = torch.nn.Softmax(dim=1)
-        
-    def forward(self, x):
-        x = self.base_head(x)
-        x = self.softmax(x)
-        return x
 
     
 class CustomModel():
@@ -216,7 +203,194 @@ class CustomModel():
 
         torch.cuda.empty_cache()
         return np.vstack(predictions)
+
+
+class SequentialHead(torch.nn.Module):
+    def __init__(self, heads: list):
+        super().__init__()
+        self.heads = heads
+        
+    def forward(self, x):
+        for head in self.heads:
+            x = head(x)
+        return x
     
+
+def upsample_defining_embeddings(emb_per_group):
+    upsampled = []
+    max_len = 0
+    for emb_list in emb_per_group:
+        if len(emb_list) > max_len:
+            max_len = len(emb_list)
+
+    for emb_list in emb_per_group:
+        new_list = emb_list.copy()
+        while len(new_list) < max_len:
+            add_sample = random.choice(emb_list)
+            new_list.append(add_sample)
+        upsampled.append(new_list)
+    return upsampled
+
+
+class MLMDataset(torch.utils.data.Dataset):
+
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def __getitem__(self, idx):
+        return {key: val[idx].clone().detach() for key, val in self.encodings.items()}
+
+    def __len__(self):
+        return len(self.encodings.input_ids)
+
+    
+class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfacemlm
+    def __init__(self, parameters: dict, mlm: BertHuggingfaceMLM):
+        self.embedder = None
+        self.head = None
+        self.split_mlm(mlm)
+        self.tokenizer = mlm.tokenizer
+        self.batch_size = mlm.batch_size
+        
+        self.debiaser = None
+        self.debias_k = None
+        if parameters['debias']:
+            self.debiaser = Debias()
+            self.debias_k = parameters['debias_k']
+        
+        
+    def split_mlm(self, mlm: BertHuggingfaceMLM):
+        #"_name_or_path" 
+        if "architectures" in mlm.model.config.__dict__.keys():
+            assert len( mlm.model.config.architectures) == 1
+            arch = mlm.model.config.architectures[0]
+            if arch in ['BertForMaskedLM', 'BertForPreTraining']:
+                self.embedder = mlm.model.bert
+                self.head = mlm.model.cls
+            elif arch in ['RobertaForMaskedLM', 'XLMRobertaForMaskedLM', 'CamembertForMaskedLM']:
+                self.embedder = mlm.model.roberta
+                self.head = mlm.model.lm_head
+            elif arch == 'AlbertForMaskedLM':
+                self.embedder = mlm.model.albert
+                self.head = mlm.model.predictions
+            elif arch == 'XLMWithLMHeadModel':
+                self.embedder = mlm.model.transformer
+                self.head = mlm.model.pred_layer
+            elif arch == 'ElectraForMaskedLM':
+                self.embedder = mlm.model.electra
+                self.head = SequentialHead([mlm.model.generator_predictions, mlm.model.generator_lm_head])
+            elif arch == 'DistilBertForMaskedLM':
+                self.embedder = mlm.model.distilbert
+                self.head = SequentialHead([mlm.model.vocab_transform, mlm.model.activation, mlm.model.vocab_layer_norm, mlm.model.vocab_projector])
+            else:
+                print("architecture ", arch, " is not supported")
+            
+        elif "deberta" in mlm.model.config._name_or_path:
+            self.embedder = mlm.model.deberta
+            self.head = mlm.model.cls
+        else:
+            print("cannot determine architecture for ", mlm.model.config._name_or_path)
+            
+        if self.embedder == None or self.head == None:
+            print("mlm pipeline could not be intiailized!")
+            
+    def embed(self, texts, average=None):
+        encodings = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
+        dataset = MLMDataset(encodings)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+
+        loop = tqdm(loader, leave=True)
+        outputs = []
+        for batch in loop:
+            input_ids = batch['input_ids']
+            attention_mask = batch['attention_mask']
+            if torch.cuda.is_available():
+                input_ids = input_ids.to('cuda')
+                attention_mask = attention_mask.to('cuda')
+            
+            out = self.embedder(input_ids, attention_mask=attention_mask)
+
+            hidden_states = out.hidden_states
+            token_emb = hidden_states[-1]#.to('cpu')
+
+            if average == 'mean': # TODO: stick with tensors and rewrite this part
+                attention_repeat = torch.repeat_interleave(attention_mask, token_emb.size()[2]).reshape(token_emb.size())
+                mean_emb = torch.sum(token_emb*attention_repeat, dim=1)/torch.sum(attention_repeat, dim=1)
+                attention_repeat = attention_repeat.to('cpu')
+                del attention_repeat
+                mean_emb = mean_emb.to('cpu')
+                outputs.append(mean_emb)
+            else:
+                token_emb = token_emb.to('cpu')
+                outputs.append(token_emb)
+
+            input_ids = input_ids.to('cpu')
+            attention_mask = attention_mask.to('cpu')
+            for hs in hidden_states:
+                hs = hs.to('cpu')
+                del hs
+            lhs = out.last_hidden_state.to('cpu')
+            del input_ids
+            del attention_mask
+            del lhs
+            torch.cuda.empty_cache()
+        
+        outputs = torch.vstack(outputs)
+        torch.cuda.empty_cache()
+        return outputs
+    
+    def predict_head(self, X: torch.Tensor):
+        dataset = TensorDataset(X)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+
+        loop = tqdm(loader, leave=True)
+        outputs = []
+        for batch in loop:
+            if torch.cuda.is_available():
+                batch_x = batch[0].to('cuda')
+                
+            pred = self.head(batch_x)
+            outputs.append(pred)
+                
+            pred = pred.to('cpu')
+            batch_x = batch_x.to('cpu')
+            del batch_x
+            del pred
+            torch.cuda.empty_cache()
+        
+        outputs = torch.vstack(outputs)
+        return outputs
+        
+       
+    def fit_debias(self, attributes: list):
+        # only fits the debiaser!
+        if self.debiaser is not None and group_label is not None:
+            print("embed attributes...")
+            emb_per_group = []
+            for group_attr in attributes:
+                # embed (average over tokens)
+                emb_per_group.append(self.embed(group_attr, average='mean'))
+            
+            # upsampling just in case
+            emb_per_group = upsample_defining_embeddings(emb_per_group)
+            
+            print("fit and debiasing...")
+            self.debiaser.fit(emb_per_group)
+        else:
+            print("nothing to do here, pipeline not intialized for debiasing!")
+            
+            
+    def predict(self, X: list):
+        print("embed samples...")
+        emb = self.embed(X)
+        
+        if self.debiaser is not None and self.debiaser.pca is not None:
+            emb = self.debiaser.predict(emb, self.debias_k)
+        
+        pred = self.predict_head(emb)
+        
+        return pred
+
 
 class DebiasPipeline():
     
@@ -241,22 +415,6 @@ class DebiasPipeline():
         else:
             print("validation score ", validation_score, " is not supported, using f1 (default) instead")
         
-    def upsample_defining_embeddings(self, emb_per_group):
-        upsampled = []
-        max_len = 0
-        for emb_list in emb_per_group:
-            if len(emb_list) > max_len:
-                max_len = len(emb_list)
-        
-        
-        for emb_list in emb_per_group:
-            new_list = emb_list.copy()
-            while len(new_list) < max_len:
-                add_sample = random.choice(emb_list)
-                new_list.append(add_sample)
-            upsampled.append(new_list)
-        return upsampled
-        
     def fit(self, emb: np.ndarray, y: np.ndarray, group_label: list = None, epochs=2, optimize_theta=False, weights=None):        
         if self.debiaser is not None and group_label is not None:
             print("fit and apply debiasing...")
@@ -266,7 +424,7 @@ class DebiasPipeline():
                 emb_per_group.append([e for i, e in enumerate(emb) if group_label[i] == group])
             
             # upsample to have equal sized groups
-            emb_per_group = self.upsample_defining_embeddings(emb_per_group)
+            emb_per_group = upsample_defining_embeddings(emb_per_group)
             
             self.debiaser.fit(emb_per_group)
             emb = self.debiaser.predict(emb, self.debias_k)
