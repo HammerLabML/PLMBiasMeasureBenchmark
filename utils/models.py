@@ -11,6 +11,7 @@ from embedding import BertHuggingface, BertHuggingfaceMLM
 import random
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
+from transformers import AutoModelForMaskedLM, AutoTokenizer
 
 
 optimizer = {'RMSprop': torch.optim.RMSprop, 'Adam': torch.optim.Adam}
@@ -245,12 +246,18 @@ class MLMDataset(torch.utils.data.Dataset):
 
     
 class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfacemlm
-    def __init__(self, parameters: dict, mlm: BertHuggingfaceMLM):
-        self.embedder = None
+    def __init__(self, parameters: dict, model_name: str):
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name, max_length=512, truncation=True, padding=True)
+        self.embedder = AutoModelForMaskedLM.from_pretrained(model_name, return_dict=True, output_hidden_states=True)
         self.head = None
-        self.split_mlm(mlm)
-        self.tokenizer = mlm.tokenizer
-        self.batch_size = mlm.batch_size
+        self.split_mlm(self.embedder)
+        self.batch_size = parameters['batch_size']
+        
+        if torch.cuda.is_available():
+            self.embedder = self.embedder.to('cuda')
+            self.head = self.head.to('cuda')
+        self.embedder.eval()
+        self.head.eval()
         
         self.debiaser = None
         self.debias_k = None
@@ -259,37 +266,37 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
             self.debias_k = parameters['debias_k']
         
         
-    def split_mlm(self, mlm: BertHuggingfaceMLM):
-        #"_name_or_path" 
-        if "architectures" in mlm.model.config.__dict__.keys():
-            assert len( mlm.model.config.architectures) == 1
-            arch = mlm.model.config.architectures[0]
+    def split_mlm(self, model: AutoModelForMaskedLM):
+        # TODO just copy head
+        if "architectures" in model.config.__dict__.keys():
+            assert len( model.config.architectures) == 1
+            arch = model.config.architectures[0]
             if arch in ['BertForMaskedLM', 'BertForPreTraining']:
-                self.embedder = mlm.model.bert
-                self.head = mlm.model.cls
+                self.embedder = model.bert
+                self.head = model.cls
             elif arch in ['RobertaForMaskedLM', 'XLMRobertaForMaskedLM', 'CamembertForMaskedLM']:
-                self.embedder = mlm.model.roberta
-                self.head = mlm.model.lm_head
+                self.embedder = model.roberta
+                self.head = model.lm_head
             elif arch == 'AlbertForMaskedLM':
-                self.embedder = mlm.model.albert
-                self.head = mlm.model.predictions
+                self.embedder = model.albert
+                self.head = model.predictions
             elif arch == 'XLMWithLMHeadModel':
-                self.embedder = mlm.model.transformer
-                self.head = mlm.model.pred_layer
+                self.embedder = model.transformer
+                self.head = model.pred_layer
             elif arch == 'ElectraForMaskedLM':
-                self.embedder = mlm.model.electra
-                self.head = SequentialHead([mlm.model.generator_predictions, mlm.model.generator_lm_head])
+                self.embedder = model.electra
+                self.head = SequentialHead([model.generator_predictions, model.generator_lm_head])
             elif arch == 'DistilBertForMaskedLM':
-                self.embedder = mlm.model.distilbert
-                self.head = SequentialHead([mlm.model.vocab_transform, mlm.model.activation, mlm.model.vocab_layer_norm, mlm.model.vocab_projector])
+                #self.embedder = model.distilbert
+                self.head = SequentialHead([model.vocab_transform, model.activation, model.vocab_layer_norm, model.vocab_projector])
             else:
                 print("architecture ", arch, " is not supported")
             
-        elif "deberta" in mlm.model.config._name_or_path:
-            self.embedder = mlm.model.deberta
-            self.head = mlm.model.cls
+        elif "deberta" in model.config._name_or_path:
+            self.embedder = model.deberta
+            self.head = model.cls
         else:
-            print("cannot determine architecture for ", mlm.model.config._name_or_path)
+            print("cannot determine architecture for ", model.config._name_or_path)
             
         if self.embedder == None or self.head == None:
             print("mlm pipeline could not be intiailized!")
@@ -309,21 +316,40 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
                 attention_mask = attention_mask.to('cuda')
             
             out = self.embedder(input_ids, attention_mask=attention_mask)
+            token_emb = out.hidden_states[-1].to('cpu')
+            
+            print(token_emb)
+            
+            outputs.append(token_emb)
+            
+            out.hidden_states = out.hidden_states.to('cpu')
+            print(out)
+            out = out.logits.to('cpu')
+            del hs
+            del out
+            input_ids = input_ids.to('cpu')
+            attention_mask = attention_mask.to('cpu')
+            del input_ids
+            del attention_mask
+            torch.cuda.empty_cache()
+        
+        outputs = torch.vstack(outputs)
+        #self.embedder = self.embedder.to('cpu')
+        return outputs
 
-            hidden_states = out.hidden_states
-            token_emb = hidden_states[-1]#.to('cpu')
-
-            if average == 'mean': # TODO: stick with tensors and rewrite this part
+    """
+            if average == 'mean':
                 attention_repeat = torch.repeat_interleave(attention_mask, token_emb.size()[2]).reshape(token_emb.size())
                 mean_emb = torch.sum(token_emb*attention_repeat, dim=1)/torch.sum(attention_repeat, dim=1)
                 attention_repeat = attention_repeat.to('cpu')
-                del attention_repeat
                 mean_emb = mean_emb.to('cpu')
                 outputs.append(mean_emb)
+                del mean_emb
+                del attention_repeat
             else:
-                token_emb = token_emb.to('cpu')
                 outputs.append(token_emb)
 
+            token_emb = token_emb.to('cpu')
             input_ids = input_ids.to('cpu')
             attention_mask = attention_mask.to('cpu')
             for hs in hidden_states:
@@ -333,13 +359,15 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
             del input_ids
             del attention_mask
             del lhs
+            del token_emb
             torch.cuda.empty_cache()
         
         outputs = torch.vstack(outputs)
-        torch.cuda.empty_cache()
-        return outputs
+    """
+
     
     def predict_head(self, X: torch.Tensor):
+        self.head = self.head.to('cuda')
         dataset = TensorDataset(X)
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
 
@@ -359,6 +387,8 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
             torch.cuda.empty_cache()
         
         outputs = torch.vstack(outputs)
+        self.head = self.head.to('cpu')
+        torch.cuda.empty_cache()
         return outputs
         
        
@@ -441,27 +471,33 @@ class DebiasPipeline():
             print("optimize classification threshold...")
             pred = self.clf.predict(emb_val)
             best_score = 0
-            for theta in np.arange(0.3, 0.7, 0.05):
+            for theta in np.arange(0.2, 0.8, 0.05):
                 y_pred = (np.array(pred) >= theta).astype(int)
                 score = self.validation_score(y_val, y_pred, average='weighted')
                 class_wise_recall = recall_score(y_val, y_pred, average=None)
-                if score > best_score and np.min(class_wise_recall) > 0:
+                if score > best_score and np.min(class_wise_recall) > 0.01:
                     self.theta = theta
                     best_score = score
             print("use theta="+str(self.theta)+" which achieves:")
-            y_pred = (np.array(pred) >= self.theta).astype(int)
-            print("recall\t\t= "+str(recall_score(y_val, y_pred, average='weighted')))
-            print("precision\t= "+str(precision_score(y_val, y_pred, average='weighted')))
-            print("f1\t\t= "+str(f1_score(y_val, y_pred, average='weighted')))
-            print("accuracy\t= "+str(accuracy_score(y_val, y_pred)))
-            
-            print("class-wise recall:")
-            print(recall_score(y_val, y_pred, average=None))
             
         else:
             print(type(emb))
             self.clf.fit(emb, y, epochs=epochs)
             self.theta = 0.5
+            
+        y_pred = (np.array(pred) >= self.theta).astype(int)
+        recall = recall_score(y_val, y_pred, average='weighted')
+        precision = precision_score(y_val, y_pred, average='weighted')
+        f1 = f1_score(y_val, y_pred, average='weighted')
+        class_recall = recall_score(y_val, y_pred, average=None)
+        print("recall\t\t= "+str(recall))
+        print("precision\t= "+str(precision))
+        print("f1\t\t= "+str(f1))
+
+        print("class-wise recall:")
+        print(class_recall)
+        
+        return recall, precision, f1, class_recall
     
     def predict(self, emb: np.ndarray):
         if self.debiaser is not None and self.debiaser.pca is not None:
