@@ -4,7 +4,7 @@
 "embedders": ["bert-base-uncased", "bert-large-uncased", "distilbert-base-uncased", "roberta-base", "roberta-large", "distilroberta-base", "xlm-roberta-base", "albert-base-v2", "albert-large-v2", "google/electra-base-generator", "google/electra-large-generator", "bert-base-multilingual-uncased", "GroNLP/hateBERT", "Twitter/twhin-bert-base", "Twitter/twhin-bert-large", "xlm-roberta-large", "medicalai/ClinicalBERT", "dbmdz/bert-base-historic-multilingual-cased", "Davlan/afro-xlmr-large", "albert-xlarge-v2", "albert-xxlarge-v2", "bert-large-uncased-whole-word-masking", "Geotrend/bert-base-en-cased", "Geotrend/bert-base-10lang-cased", "Geotrend/bert-base-15lang-cased", "Intel/bert-base-uncased-sparse-70-unstructured", "Intel/bert-base-uncased-sparse-85-unstructured-pruneofa", "Intel/bert-base-uncased-sparse-90-unstructured-pruneofa", "Intel/distilbert-base-uncased-sparse-85-unstructured-pruneofa", "Intel/distilbert-base-uncased-sparse-90-unstructured-pruneofa", "abhi1nandy2/Bible-roberta-base", "cardiffnlp/twitter-roberta-base-irony", "distilbert-base-uncased-finetuned-sst-2-english", "roberta-large-openai-detector", "roberta-base-openai-detector", "tomh/toxigen_roberta", "roberta-large-openai-detector", "gpt2", "openai-gpt", "gpt2-large", "xlnet-base-cased", "xlnet-large-cased"], 
 "clf_heads": ["SimpleCLFHead"], 
 "debias": true, 
-"debias_k": [1, 2, 3], 
+"debias_k": [1, 3, 5], 
 "clf_optimizer": ["RMSprop"], 
 "clf_criterion": ["BCEWithLogitsLoss"], 
 "lr": [1e-03], 
@@ -12,6 +12,9 @@
 "n_fold": 5, 
 "epochs": 5, 
 "bios_file": "../MeasuringFairnessWithBiasedData/data/BIOS_REVIEWED.pkl", 
-"bios_classes": ["architect", "psychologist", "professor", "photographer", "journalist", "attorney", "teacher", "dentist", "*software architect", "*writer", "surgeon", "physician", "nurse", "*researcher"], 
+"bios_classes": ["architect", "psychologist", "photographer", "journalist", "attorney", "teacher", "*software architect", "*writer", "surgeon", "physician", "dentist", "nurse"], 
 "save_file": "results/res_bios.pickle", 
-"batch_size_lookup": "data/batch_size_lookup_1080.json"}
+"batch_size_lookup": "data/batch_size_lookup_1080.json",
+"group_weights": false,
+"validation_score": "f1"
+}
