@@ -149,13 +149,15 @@ def run_clf_experiments(exp_config: dict):
             df = pd.DataFrame(sample_dist)
             print("train data stats for fold ", fold_id)
             print(df)
-            class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in bios_dataset.labels} for g in bios_dataset.sel_groups}
-            mean_per_class = len(bios_dataset.train_data)/n_classes
-            y = np.asarray([sample['label'] for sample in bios_dataset.train_data])
-            pos_percentage = np.sum(y)/(y.shape[0]*y.shape[1])
-            print("positive sample percentage: ", pos_percentage)
+            #class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in bios_dataset.labels} for g in bios_dataset.sel_groups}
+            #mean_per_class = len(bios_dataset.train_data)/n_classes
+            #y = np.asarray([sample['label'] for sample in bios_dataset.train_data])
+            #pos_percentage = np.sum(y)/(y.shape[0]*y.shape[1])
+            #print("positive sample percentage: ", pos_percentage)
             # TODO: this can be done by the pipeline
-            class_weights = [mean_per_class/np.sum(df.loc[:,lbl])/pos_percentage for lbl in bios_dataset.labels]
+            
+            # for each class: number of negative samples over number of positive samples -> pos weight
+            class_weights = [(len(bios_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl]) for lbl in bios_dataset.labels]
             print("class weights: ")
             print(bios_dataset.labels)
             print(class_weights)
