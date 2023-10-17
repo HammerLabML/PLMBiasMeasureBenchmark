@@ -149,7 +149,7 @@ def run_clf_experiments(exp_config: dict):
             df = pd.DataFrame(sample_dist)
             print("train data stats for fold ", fold_id)
             print(df)
-            #class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in bios_dataset.labels} for g in bios_dataset.sel_groups}
+            class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in bios_dataset.labels} for g in bios_dataset.sel_groups}
             #mean_per_class = len(bios_dataset.train_data)/n_classes
             #y = np.asarray([sample['label'] for sample in bios_dataset.train_data])
             #pos_percentage = np.sum(y)/(y.shape[0]*y.shape[1])
