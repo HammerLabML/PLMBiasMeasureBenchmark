@@ -2,6 +2,7 @@ import difflib
 import string
 
 import datasets
+import pandas as pd
 from datasets import load_dataset
 
 from embedding import BertHuggingfaceMLM
@@ -345,7 +346,6 @@ class BiosDataset(BiasDataset):
         with open(bios_file, 'rb') as handle:
             data = pickle.load(handle)
         
-        # all titles with >100 samples
         self.labels = sel_labels
         self.bias_types = ['gender']
         self.groups_by_bias_types = {'gender': ['male', 'female']}
@@ -459,9 +459,145 @@ class BiosDataset(BiasDataset):
         
 class JigsawDataset(BiasDataset):
     
-    def __init__(self):
-        super(CrowSPairsDataset, self).__init__()
+    def __init__(self, n_folds: int, dataset_dir: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
+        super(JigsawDataset, self).__init__()
+        dataset = load_dataset("jigsaw_unintended_bias", data_dir=dataset_dir)
+        self.labels = sel_labels
+        self.groups_by_bias_types = {bt: groups_by_bias_types[bt] for bt in bias_types}
+        self.bias_types = self.groups_by_bias_types.keys()
+        
+        self.transform_data(dataset['train'])
+        
+        self.sel_bias_type = None
+        self.sel_groups = []
+        self.sel_data = None
+        self.n_folds = n_folds
+        
+        self.individual_biases = []
+        self.bias_score = []
+        
+        self.data_folds = None
+        self.train_data = []
+        self.eval_data = []
+        
+        self.subgroup_auc = []
+        self.bpsn = []
+        self.bnsp = []
+        
+    def sel_attributes(self, bias_type: str) -> bool:
+        if not bias_type in self.bias_types:
+            print("bias type", bias_type, "is not supported for this dataset")
+            return False
+        
+        self.sel_bias_type = bias_type
+        self.sel_groups = self.groups_by_bias_types[bias_type]
+        
+        self.sel_data = []
+        for sample in self.data:
+            if self.sel_bias_type in sample['bias_type']:
+                self.sel_data.append(sample)
+            
+        idx = 0
+        for sample in self.sel_data:
+            sample['id'] = idx
+            idx += 1
+                
+        n_per_fold = math.ceil(len(self.sel_data)/self.n_folds)
+        self.data_folds = [self.sel_data[i:i+n_per_fold] for i in range(0, len(self.sel_data), n_per_fold)]
+        
+        print("sample distributions per data fold: ")
+        for j, fold in enumerate(self.data_folds):
+            sample_dist = {title: {group: 0 for group in self.sel_groups} for title in self.labels}
+            for sample in fold:
+                for i in range(sample['label'].shape[0]):
+                    if sample['label'][i] == 1:
+                        sample_dist[self.labels[i]][self.sel_groups[sample['group']]] += 1
+
+            df = pd.DataFrame(sample_dist)
+            print("class/group distribution for fold", j)
+            with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
+                print(df)
+            print()
+        
+        return True
     
+    def set_data_split(self, fold_id):
+        assert fold_id >= 0 and fold_id < self.n_folds
+        
+        self.eval_data = self.data_folds[fold_id]
+        self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
+        
+        print("got ", len(self.eval_data), "eval samples")
+        print("got ", len(self.train_data), "train samples")
+        print("max train id is: ", np.max([sample['id'] for sample in self.train_data]))
+        
+    def translate_group_name(self, group):
+        if group == 'homosexual':
+            return 'homosexual_gay_or_lesbian'
+        
+        # 'disability': ['intellectual_or_learning_disability', 'physical_disability', 'psychiatric_or_mental_illness', 'other_disability']
+        else:
+            return group
+        
+    def transform_sample(self, sample):
+        if sample['identity_annotator_count'] == 0:
+            return None
+        
+        label = np.zeros(len(self.labels))
+        for i, lbl in enumerate(self.labels):
+            if sample[lbl] > 0.66: # 2/3 majority vote
+                label[i] = 1
+                
+        bias_types = []
+        found_groups = []
+        for bias_type, groups in self.groups_by_bias_types.items():
+            for group in groups:
+                group_jigsaw = self.translate_group_name(group)
+                if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.66: # 2/3 majority vote
+                    bias_types.append(bias_type)
+                    found_groups.append(self.groups_by_bias_types[bias_type].index(group))
+            #if bias_types.count(bias_type) > 1:
+            #    print(sample)
+        if len(found_groups) == 0:
+            return None
+        
+        if len(found_groups) > 1:
+            return None
+        
+        if np.sum(label) == 0:
+            return None
+        
+        # TODO: can we get actual counterfactuals?
+        new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 
+                          'bias_type': bias_types[0], 'group': found_groups[0]}
+        return new_sample
+        
+    def transform_data(self, data):
+        self.data = []
+        for sample in data:
+            new_sample = self.transform_sample(sample)
+            if new_sample is not None:
+                self.data.append(new_sample)
+        self.data = shuffle(self.data, random_state=0)
+        
+        print(self.data[0])
+            
+    def get_neutral_samples_by_masking(self, attributes): 
+        neutral_sent = []
+        labels = []
+        groups = []
+        for sample in self.sel_data:
+            bio = sample['counterfactual'].lower()
+            for attr in attributes[sample['group']]:
+                bio = bio.replace(' '+attr+' ', '_')
+            neutral_sent.append(bio)
+            labels.append(sample['label'])
+            groups.append(sample['group'])
+            
+        print("used ", len(self.sel_data), "selected samples to create ", len(neutral_sent), " neutral samples")
+            
+        return neutral_sent, labels, groups
+        
     def individual_bias(self, sample: dict):
         pass
         
@@ -469,6 +605,21 @@ class JigsawDataset(BiasDataset):
         # ?? toxicity score (vs. counterfactual)
         
     
-    def group_bias(self):
-        pass
-        # GAP + AUC
+    def group_bias(self, prediction_wrapper: Callable, emb):
+        assert len(emb) == len(self.eval_data)
+        
+        y_true = np.asarray([sample['label'] for sample in self.eval_data])
+        groups = np.asarray([sample['group'] for sample in self.eval_data])
+        #sent = [sample['text'] for sample in self.eval_data]
+        
+        y_pred = prediction_wrapper(emb)
+        
+        gaps = gap_score_one_hot(y_pred, y_true, groups)
+        self.bias_score = gaps # class-wise gaps
+        print("GAPs:", self.bias_score)
+        
+        # AUC
+        self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
+        print("subgroup AUC:", self.subgroup_auc)
+        print("BPSN:", self.bpsn)
+        print("BNSP:", self.bnsp)

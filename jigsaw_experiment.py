@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import pandas as pd
+import math
 
 import torch
 import json
@@ -36,7 +37,6 @@ def run_clf_experiments(exp_config: dict):
     else:
         exp_parameters = []
         results = []
-        #results_test = []
 
         # prepare parameters for individual experiments
         for bt in exp_config['bias_types']:
@@ -57,36 +57,12 @@ def run_clf_experiments(exp_config: dict):
                                                        'optimizer': optim, 'criterion': crit, 'lr': lr, 'debias_k': k})
                                         exp_parameters.append(params)        
                             
-    # load the datasets    
-    bios_merged_file = exp_config['bios_file']
-    titles = exp_config['bios_classes']
+    # load the datasets
+    jigsaw_dataset = JigsawDataset(n_folds=exp_config['n_fold'], dataset_dir=exp_config['jigsaw_dir'], bias_types=exp_config['bias_types'], 
+                                   groups_by_bias_types=groups_by_bias_types, sel_labels=exp_config['labels'])
+    print("loaded JIGSAW dataset with", len(jigsaw_dataset.data), "samples")
+    titles = jigsaw_dataset.labels
     n_classes = len(titles)
-    bios_dataset = BiosDataset(n_folds=exp_config['n_fold'], sel_labels=titles, bios_file=bios_merged_file)
-    print("loaded BIOS dataset with", len(bios_dataset.sel_data), "samples")
-    n_groups = len(bios_dataset.sel_groups)
-
-    sample_dist = {title: {'male': 0, 'female': 0} for title in bios_dataset.labels}
-    for sample in bios_dataset.sel_data:
-        for i in range(sample['label'].shape[0]):
-            if sample['label'][i] == 1:
-                sample_dist[bios_dataset.labels[i]][bios_dataset.sel_groups[sample['group']]] += 1
-
-    df = pd.DataFrame(sample_dist)
-    print("class/gender distribution:")
-    print(df)
-    print()
-    
-    classes_by_majority_group = {'male': [], 'female': []}
-    for job, dist in sample_dist.items():
-        if dist['male'] > dist['female']:
-            classes_by_majority_group['male'].append(job)
-        else:
-            classes_by_majority_group['female'].append(job)
-
-    print("classes per majority group: ")
-    print(classes_by_majority_group)
-    print()
-    
     
     # run experiments
     for i, params in enumerate(exp_parameters):
@@ -96,6 +72,35 @@ def run_clf_experiments(exp_config: dict):
             
         print("run experiment", i, "of", len(exp_parameters), "with parameters:")
         print(params)
+        
+        # select bias_type from dataset
+        if params['bias_type'] is not jigsaw_dataset.sel_bias_type:
+            jigsaw_dataset.sel_attributes(params['bias_type'])
+            n_groups = len(jigsaw_dataset.sel_groups)
+
+            sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups} for title in jigsaw_dataset.labels}
+            for sample in jigsaw_dataset.sel_data:
+                for i in range(sample['label'].shape[0]):
+                    if sample['label'][i] == 1:
+                        sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1
+
+            df = pd.DataFrame(sample_dist)
+            print("class/group distribution:")
+            with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
+                print(df)
+            print()
+
+            samples_per_group = [np.sum(df.loc[group]) for group in jigsaw_dataset.sel_groups]
+            classes_by_majority_group = {group: [] for group in jigsaw_dataset.sel_groups}
+            for cur_class, dist in sample_dist.items():
+                max_group_id = np.argmax(np.divide(list(dist.values()), samples_per_group))
+                group = jigsaw_dataset.sel_groups[max_group_id]
+                classes_by_majority_group[group].append(cur_class)
+                        
+
+            print("classes per majority group: ")
+            print(classes_by_majority_group)
+            print()
 
         model_name = params['embedder']
         if not model_name in batch_size_lookup.keys():
@@ -118,11 +123,13 @@ def run_clf_experiments(exp_config: dict):
         attr_emb = [lm.embed(attr) for attr in attributes]
         
         #print("embed all raw bios...")
-        #bios_emb_all = lm.embed([sample['text'] for sample in bios_dataset.sel_data])
+        #bios_emb_all = lm.embed([sample['text'] for sample in jigsaw_dataset.sel_data])
         
-        print("embed all neutralized bios...")
-        targets, labels, group_label = bios_dataset.get_neutral_samples_by_masking(attributes)
+        print("embed all neutralized samples...")
+        targets, labels, group_label = jigsaw_dataset.get_neutral_samples_by_masking(attributes)
         assert len(set(group_label)) == n_groups
+        
+        print("embed ", len(targets), "neutral target samples")
         target_emb_all = lm.embed(targets)
             
         # TODO ROC AUC bias
@@ -136,40 +143,42 @@ def run_clf_experiments(exp_config: dict):
                 break
             
             # get the training data
-            bios_dataset.set_data_split(fold_id)
+            jigsaw_dataset.set_data_split(fold_id)
             
             # new sample distribution and resulting class weights
-            mean_n_samples = len(bios_dataset.train_data)/(n_classes*n_groups) # per class
-            sample_dist = {title: {'male': 0, 'female': 0} for title in bios_dataset.labels}
-            for sample in bios_dataset.train_data:
+            mean_n_samples = len(jigsaw_dataset.train_data)/(n_classes*n_groups) # per class
+            sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups} for title in jigsaw_dataset.labels}
+            for sample in jigsaw_dataset.train_data:
                 for i in range(sample['label'].shape[0]):
                     if sample['label'][i] == 1:
-                        sample_dist[bios_dataset.labels[i]][bios_dataset.sel_groups[sample['group']]] += 1
+                        sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1
 
             df = pd.DataFrame(sample_dist)
+            
             print("train data stats for fold ", fold_id)
             print(df)
-            class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in bios_dataset.labels} for g in bios_dataset.sel_groups}
-            # for each class: number of negative samples over number of positive samples -> pos weight
-            class_weights = [(len(bios_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl]) for lbl in bios_dataset.labels]
+            class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in jigsaw_dataset.labels} for g in jigsaw_dataset.sel_groups}
+            class_weights = [(len(jigsaw_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl]) for lbl in jigsaw_dataset.labels]
             print("class weights: ")
-            print(bios_dataset.labels)
+            print(jigsaw_dataset.labels)
             print(class_weights)
                 
             pipeline = DebiasPipeline(params, head, debias=params['debias'], validation_score=exp_config['validation_score'], class_weights=class_weights)
             
             # get samples
-            train_ids = [sample['id'] for sample in bios_dataset.train_data]
+            train_ids = [sample['id'] for sample in jigsaw_dataset.train_data]
             emb = np.asarray([target_emb_all[i] for i in train_ids])
-            y = np.asarray([sample['label'] for sample in bios_dataset.train_data])
-            groups = [sample['group'] for sample in bios_dataset.train_data]
+            y = np.asarray([sample['label'] for sample in jigsaw_dataset.train_data])
+            groups = [sample['group'] for sample in jigsaw_dataset.train_data]
+            
+            assert len(groups) == y.shape[0]
             
             # get sample weights
             sample_weights = []
-            for sample in bios_dataset.train_data:
-                cur_labels = [bios_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
-                group = bios_dataset.sel_groups[sample['group']]
-                weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
+            for sample in jigsaw_dataset.train_data:
+                cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
+                cur_group = jigsaw_dataset.sel_groups[sample['group']]
+                weights = [class_gender_weights[cur_group][lbl]*100 for lbl in cur_labels]
                 sample_weights.append(np.max(weights))
             
             # fit the whole pipeline
@@ -185,70 +194,20 @@ def run_clf_experiments(exp_config: dict):
             
             # compute the bias
             print("compute extrinsic biases...")
-            eval_ids = [sample['id'] for sample in bios_dataset.eval_data]
-            emb_eval = np.asarray([target_emb_all[i] for i in eval_ids]) # 
-            bios_dataset.group_bias(pipeline.predict, emb_eval)
-            cur_result['extrinsic_individual'].append(bios_dataset.bias_score) # class-wise GAPs
-            cur_result['extrinsic'].append(np.mean(np.abs(bios_dataset.bias_score)))
-            cur_result['subgroup_AUC'].append(bios_dataset.subgroup_auc)
-            cur_result['BPSN'].append(bios_dataset.bpsn)
-            cur_result['BNSP'].append(bios_dataset.bnsp)
-            #cur_result_test['extrinsic_individual'].append(bios_dataset.bias_score) # class-wise GAPs
-            #cur_result_test['extrinsic'].append(np.mean(np.abs(bios_dataset.bias_score)))
-            
-            """
-            # compute cosine scores on training data (this makes more sense)
-            print("compute cosine scores...")
-            target_emb = emb #[target_emb_all[i] for i in train_ids]
-            if params['debias']:
-                target_emb = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
-            target_label = [labels[i] for i in train_ids]
-            target_groups = [group_label[i] for i in train_ids]
-            target_emb_per_group = []
-            for group in range(max(group_label)+1):
-                group_name = bios_dataset.sel_groups[group]
-                emb = []
-                for i in range(len(train_ids)):
-                    for lbl in classes_by_majority_group[group_name]:
-                        lbl_idx = titles.index(lbl)
-                        if target_label[i][lbl_idx] == 1:
-                            emb.append(target_emb[i])
-                target_emb_per_group.append(emb)
-
-            
-            for score in params['bias_scores']:
-                if score == 'WEAT' and n_groups > 2:
-                    cur_result[score].append(math.nan)
-                    continue
-
-                cur_score = cosine_scores[score]()
-                cur_score.define_bias_space(attr_emb)
-
-                if not score == 'gWEAT':
-                    # TODO: per class then mean
-                    class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                    cur_result[score+'_individual'].append(class_biases)
-
-                if score in ['WEAT', 'gWEAT']:
-                    bias = cur_score.group_bias(target_emb_per_group)
-                else:
-                    # SAME, DirectBias, MAC
-                    bias = cur_score.mean_individual_bias(target_emb)
-
-                cur_result[score].append(bias)
-            """
-            """
-            # prepare defining embeddings (from dataset)
-            n_groups = max(group_label)+1
-            emb_per_group = []
-            for group in range(n_groups):
-                emb_per_group.append([e for i, e in enumerate(emb) if groups[i] == group])
-            
-            # upsample to have equal sized groups
-            print("upsample attribute embeddings...")
-            emb_per_group = upsample_defining_embeddings(emb_per_group)
-            """
-
+            eval_ids = [sample['id'] for sample in jigsaw_dataset.eval_data]
+            emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
+            y_eval = np.asarray([sample['label'] for sample in jigsaw_dataset.eval_data])
+            print("positive eval samples per class:")
+            print(np.sum(y_eval, axis=0))
+            print(jigsaw_dataset.labels)
+            jigsaw_dataset.group_bias(pipeline.predict, emb_eval)
+            cur_result['extrinsic_individual'].append(jigsaw_dataset.bias_score) # class-wise GAPs
+            cur_result['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
+            cur_result['subgroup_AUC'].append(jigsaw_dataset.subgroup_auc)
+            cur_result['BPSN'].append(jigsaw_dataset.bpsn)
+            cur_result['BNSP'].append(jigsaw_dataset.bnsp)
+            #cur_result_test['extrinsic_individual'].append(jigsaw_dataset.bias_score) # class-wise GAPs
+            #cur_result_test['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
             
             # also compute cosine scores on test data
             print("compute cosine scores on eval data...")
@@ -259,7 +218,7 @@ def run_clf_experiments(exp_config: dict):
             target_groups = [group_label[i] for i in eval_ids]
             target_emb_per_group = []
             for group in range(max(group_label)+1):
-                group_name = bios_dataset.sel_groups[group]
+                group_name = jigsaw_dataset.sel_groups[group]
                 emb = []
                 for i in range(len(eval_ids)):
                     for lbl in classes_by_majority_group[group_name]:
@@ -267,6 +226,7 @@ def run_clf_experiments(exp_config: dict):
                         if target_label[i][lbl_idx] == 1:
                             emb.append(target_emb[i])
                 target_emb_per_group.append(emb)
+                print("got ", len(emb), " embeddings for group ", group)
 
             # compute cosine scores
             for score in params['bias_scores']:
