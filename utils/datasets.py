@@ -462,11 +462,12 @@ class JigsawDataset(BiasDataset):
     def __init__(self, n_folds: int, dataset_dir: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
         super(JigsawDataset, self).__init__()
         dataset = load_dataset("jigsaw_unintended_bias", data_dir=dataset_dir)
+        
         self.labels = sel_labels
         self.groups_by_bias_types = {bt: groups_by_bias_types[bt] for bt in bias_types}
         self.bias_types = self.groups_by_bias_types.keys()
         
-        self.transform_data(dataset['train'])
+        self.transform_data(dataset)
         
         self.sel_bias_type = None
         self.sel_groups = []
@@ -574,7 +575,15 @@ class JigsawDataset(BiasDataset):
         
     def transform_data(self, data):
         self.data = []
-        for sample in data:
+        for sample in data['train']:
+            new_sample = self.transform_sample(sample)
+            if new_sample is not None:
+                self.data.append(new_sample)
+        for sample in data['test_private_leaderboard']:
+            new_sample = self.transform_sample(sample)
+            if new_sample is not None:
+                self.data.append(new_sample)
+        for sample in data['test_public_leaderboard']:
             new_sample = self.transform_sample(sample)
             if new_sample is not None:
                 self.data.append(new_sample)

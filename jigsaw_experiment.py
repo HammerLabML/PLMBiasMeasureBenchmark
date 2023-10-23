@@ -13,7 +13,7 @@ from embedding import BertHuggingface
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, MAC, normalize, cossim, EmbSetList, EmbSet, GeometricBias
 from utils import CLFHead, SimpleCLFHead, CustomModel, JigsawDataset, BiosDataset, DebiasPipeline, upsample_defining_embeddings
 
-with open('data/protected_groups.json', 'r') as f:
+with open('data/protected_groups_tox.json', 'r') as f:
     pg_config = json.load(f)
     
 groups_by_bias_types = pg_config['groups_by_bias_types']
