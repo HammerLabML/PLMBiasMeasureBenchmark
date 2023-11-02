@@ -12,6 +12,8 @@ import random
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from transformers import AutoModelForMaskedLM, AutoTokenizer
+from unmasking_bias import get_token_diffs
+from transformers.tokenization_utils_base import BatchEncoding
 
 
 optimizer = {'RMSprop': torch.optim.RMSprop, 'Adam': torch.optim.Adam}
@@ -243,19 +245,40 @@ class MLMDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.encodings.input_ids)
+    
+class MLMBiasDataset(torch.utils.data.Dataset):
+
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def __getitem__(self, idx):
+        return {'input_ids': self.encodings.input_ids[idx].clone().detach(),
+                'label': self.encodings.label[idx].clone().detach(),
+                'mask_ids': self.encodings.mask_ids[idx],
+                'attention_mask': self.encodings.attention_mask[idx]}
+
+    def __len__(self):
+        return len(self.encodings.input_ids)
 
     
-class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfacemlm
+class MLMPipeline():
     def __init__(self, parameters: dict, model_name: str):
+        self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, max_length=512, truncation=True, padding=True)
         self.embedder = AutoModelForMaskedLM.from_pretrained(model_name, return_dict=True, output_hidden_states=True)
         self.head = None
         self.split_mlm(self.embedder)
         self.batch_size = parameters['batch_size']
+        self.softmax = torch.nn.LogSoftmax(dim=2)
+        
+        self.special_tokens_ids = [self.tokenizer.cls_token_id, self.tokenizer.eos_token_id, self.tokenizer.bos_token,
+                                   self.tokenizer.sep_token_id, self.tokenizer.pad_token_id, self.tokenizer.unk_token_id,
+                                   self.tokenizer.mask_token_id] + self.tokenizer.additional_special_tokens_ids
         
         if torch.cuda.is_available():
             self.embedder = self.embedder.to('cuda')
             self.head = self.head.to('cuda')
+            self.softmax = self.softmax.to('cuda')
         self.embedder.eval()
         self.head.eval()
         
@@ -267,7 +290,6 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
         
         
     def split_mlm(self, model: AutoModelForMaskedLM):
-        # TODO just copy head
         if "architectures" in model.config.__dict__.keys():
             assert len( model.config.architectures) == 1
             arch = model.config.architectures[0]
@@ -287,7 +309,7 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
                 self.embedder = model.electra
                 self.head = SequentialHead([model.generator_predictions, model.generator_lm_head])
             elif arch == 'DistilBertForMaskedLM':
-                #self.embedder = model.distilbert
+                #self.embedder = model.distilbert -> has no logits output
                 self.head = SequentialHead([model.vocab_transform, model.activation, model.vocab_layer_norm, model.vocab_projector])
             else:
                 print("architecture ", arch, " is not supported")
@@ -301,12 +323,20 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
         if self.embedder == None or self.head == None:
             print("mlm pipeline could not be intiailized!")
             
-    def embed(self, texts, average=None):
-        encodings = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
+    def embed(self, texts, average=None, is_tokenized=False, verbose=True):
+        if is_tokenized:
+            encodings = texts
+        else:
+            encodings = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
+            
         dataset = MLMDataset(encodings)
-        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
 
-        loop = tqdm(loader, leave=True)
+        if verbose:
+            loop = tqdm(loader, leave=True)
+        else:
+            loop = loader
+            
         outputs = []
         for batch in loop:
             input_ids = batch['input_ids']
@@ -316,60 +346,34 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
                 attention_mask = attention_mask.to('cuda')
             
             out = self.embedder(input_ids, attention_mask=attention_mask)
-            token_emb = out.hidden_states[-1].to('cpu')
             
-            print(token_emb)
-            
-            outputs.append(token_emb)
-            
-            out.hidden_states = out.hidden_states.to('cpu')
-            print(out)
-            out = out.logits.to('cpu')
-            del hs
-            del out
-            input_ids = input_ids.to('cpu')
-            attention_mask = attention_mask.to('cpu')
-            del input_ids
-            del attention_mask
-            torch.cuda.empty_cache()
-        
-        outputs = torch.vstack(outputs)
-        #self.embedder = self.embedder.to('cpu')
-        return outputs
-
-    """
+            token_emb = out.hidden_states[-1]
             if average == 'mean':
                 attention_repeat = torch.repeat_interleave(attention_mask, token_emb.size()[2]).reshape(token_emb.size())
                 mean_emb = torch.sum(token_emb*attention_repeat, dim=1)/torch.sum(attention_repeat, dim=1)
                 attention_repeat = attention_repeat.to('cpu')
                 mean_emb = mean_emb.to('cpu')
-                outputs.append(mean_emb)
+                outputs.append(mean_emb.detach().numpy())
                 del mean_emb
                 del attention_repeat
             else:
-                outputs.append(token_emb)
-
-            token_emb = token_emb.to('cpu')
+                outputs.append(token_emb.to('cpu').detach().numpy())
+            
+            if 'logits' in out.keys():
+                out = out.logits.to('cpu')
+                del out
             input_ids = input_ids.to('cpu')
             attention_mask = attention_mask.to('cpu')
-            for hs in hidden_states:
-                hs = hs.to('cpu')
-                del hs
-            lhs = out.last_hidden_state.to('cpu')
             del input_ids
             del attention_mask
-            del lhs
-            del token_emb
             torch.cuda.empty_cache()
         
-        outputs = torch.vstack(outputs)
-    """
-
+        outputs = np.vstack(outputs)
+        return outputs
     
-    def predict_head(self, X: torch.Tensor):
-        self.head = self.head.to('cuda')
+    def predict_head(self, X: torch.Tensor, return_log_prob=True):
         dataset = TensorDataset(X)
-        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size, shuffle=True)
+        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
 
         loop = tqdm(loader, leave=True)
         outputs = []
@@ -378,20 +382,97 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
                 batch_x = batch[0].to('cuda')
                 
             pred = self.head(batch_x)
-            outputs.append(pred)
-                
             pred = pred.to('cpu')
+            outputs.append(pred.detach().numpy())
+            
             batch_x = batch_x.to('cpu')
             del batch_x
-            del pred
             torch.cuda.empty_cache()
         
-        outputs = torch.vstack(outputs)
-        self.head = self.head.to('cpu')
+        outputs = np.vstack(outputs)
         torch.cuda.empty_cache()
         return outputs
         
-       
+    def predict_token_probs_head(self, dataset: MLMBiasDataset):
+        loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
+
+        #loop = tqdm(loader, leave=True)
+        sum_log_probs = 0
+        for batch in loader:
+            token_ids = batch['label']
+            last_hidden_state_masked = batch['input_ids']
+            mask_ids = batch['mask_ids']
+            attention_mask = batch['attention_mask']
+
+            if torch.cuda.is_available():
+                token_ids = token_ids.to('cuda')
+                last_hidden_state_masked = last_hidden_state_masked.to('cuda')
+                attention_mask = attention_mask.to('cuda')
+
+            output = self.head(last_hidden_state_masked)
+            #print(output)
+            #logits = output.logits
+            token_prob = self.softmax(output)
+
+            sel_token_probs = [token_prob[i][mask_ids[i]].tolist() for i in range(len(mask_ids))]
+
+            target_token_ids = [token_ids[i][mask_id] for i, mask_id in enumerate(mask_ids)]
+            probs_target = np.asarray([float(sel_token_probs[i][target_token_id]) for i, target_token_id in enumerate(target_token_ids)])
+            sum_log_probs += sum(probs_target)
+
+            # gpu cleanup
+            if torch.cuda.is_available():
+                attention_mask = attention_mask.to('cpu')
+                token_prob = token_prob.to('cpu')
+                token_ids = token_ids.to('cpu')
+                last_hidden_state_masked = last_hidden_state_masked.to('cpu')
+
+                del output
+                del last_hidden_state_masked
+                del token_prob
+                del attention_mask
+
+                torch.cuda.empty_cache()
+        
+        return sum_log_probs
+    
+    def predict_token_probs(self, encoding: BatchEncoding) -> list[float]:
+        token_ids = encoding['input_ids']
+        unmodified_id_lists = encoding['unmodified']
+        attention_mask = encoding['attention_mask']
+
+        res = []
+        for idx in tqdm(range(token_ids.size()[0])):
+            tokens_masked = []
+            tokens_label = []
+            attention_masks = []
+
+            for unmod_idx in unmodified_id_lists[idx]:
+                cur_masked = token_ids[idx].clone()
+                cur_masked[unmod_idx] = self.tokenizer.mask_token_id
+
+                tokens_masked.append(cur_masked.tolist())
+                tokens_label.append(token_ids[idx].tolist())
+                attention_masks.append(attention_mask[idx].tolist())
+
+            tokens_masked = torch.LongTensor(tokens_masked)
+            tokens_label = torch.LongTensor(tokens_label)
+            attention_masks = torch.IntTensor(attention_masks)
+            
+            last_hidden_state_masked = self.embed(BatchEncoding({'input_ids': tokens_masked, 'attention_mask': attention_masks}), is_tokenized=True, verbose=False)
+            
+            if self.debiaser is not None and self.debiaser.pca is not None:
+                last_hidden_state_masked = self.debiaser.predict(last_hidden_state_masked, self.debias_k)
+            last_hidden_state_masked = torch.Tensor(last_hidden_state_masked)
+
+            encodings = BatchEncoding({'input_ids': last_hidden_state_masked, 'label': tokens_label,
+                                       'attention_mask': attention_masks, 'mask_ids': unmodified_id_lists[idx]})
+            
+            dataset = MLMBiasDataset(encodings)
+            token_probs = self.predict_token_probs_head(dataset)
+            res.append(token_probs)
+        return res        
+        
     def fit_debias(self, attributes: list):
         # only fits the debiaser!
         if self.debiaser is not None and group_label is not None:
@@ -417,9 +498,42 @@ class MLMPipeline(): # TODO: take hugginface automodel instead of berthuggingfac
         if self.debiaser is not None and self.debiaser.pca is not None:
             emb = self.debiaser.predict(emb, self.debias_k)
         
-        pred = self.predict_head(emb)
+        pred = self.predict_head(torch.Tensor(emb))
         
         return pred
+    
+    # tests for likelihood differences in sentence pairs that reflect social stereotypes:
+    # test_sent: sentences contain some stereotype/ disadvantaged group
+    # compare_sent: minimally different sentences, where the disadvantaged group is replaced by a more advantaged group
+    # e.g. "most black people are criminals" -> "most white people are criminals"
+    def compare_sentence_likelihood(self, test_sent: list[str], compare_sent: list[str], return_prob: bool = False) \
+            -> tuple[list[float], list[float]]:
+        assert len(test_sent) == len(compare_sent), "need two equal sized lists"
+
+        token_ids1 = self.tokenizer(test_sent, return_tensors='pt', max_length=512, truncation=True,
+                                    padding='max_length')
+        token_ids2 = self.tokenizer(compare_sent, return_tensors='pt', max_length=512, truncation=True,
+                                    padding='max_length')
+
+        unmodified1 = []
+        unmodified2 = []
+
+        for i in range(token_ids1['input_ids'].size()[0]):
+            mod1, mod2, unmod1, unmod2 = get_token_diffs(token_ids1['input_ids'][i], token_ids2['input_ids'][i],
+                                                         self.special_tokens_ids)
+            unmodified1.append(unmod1)
+            unmodified2.append(unmod2)
+        token_ids1['unmodified'] = unmodified1
+        token_ids2['unmodified'] = unmodified2
+
+        scores1 = self.predict_token_probs(token_ids1)
+        scores2 = self.predict_token_probs(token_ids2)
+
+        if return_prob:
+            scores1 = torch.exp(torch.Tensor(scores1)).tolist()
+            scores2 = torch.exp(torch.Tensor(scores2)).tolist()
+
+        return scores1, scores2
 
 
 class DebiasPipeline():

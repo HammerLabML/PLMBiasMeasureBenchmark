@@ -8,7 +8,7 @@ from datasets import load_dataset
 from embedding import BertHuggingfaceMLM
 from transformers import PreTrainedTokenizer
 
-from unmasking_bias import PLLBias, get_token_diffs
+from unmasking_bias import get_token_diffs
 
 from sklearn.utils import shuffle
 from sklearn.metrics import roc_auc_score
@@ -188,20 +188,19 @@ class CrowSPairsDataset(BiasDataset):
         group_ids = [self.groups_by_bias_types[self.sel_bias_type].index(label) for label in group_labels]
         return neutral_samples, group_ids
         
-    def compute_PLL(self, mlm: BertHuggingfaceMLM):
-        if self.pll_cur_bias_type == self.sel_bias_type and len(self.pll_more) == len(self.sel_data) and self.last_mlm_name == mlm.model.config._name_or_path:
+    def compute_PLL(self, model_name: str, pll_compare_sent_func: Callable):
+        if self.pll_cur_bias_type == self.sel_bias_type and len(self.pll_more) == len(self.sel_data) and self.last_mlm_name == model_name:
             return
-        pllBias = PLLBias(mlm.model, mlm.tokenizer, mlm.batch_size)
         
         sent_more = [sample['text'] for sample in self.sel_data]
         sent_less = [sample['counterfactual'] for sample in self.sel_data]
-        self.pll_more, self.pll_less = pllBias.compare_sentence_likelihood(sent_more, sent_less)
+        self.pll_more, self.pll_less = pll_compare_sent_func(sent_more, sent_less)
         
         self.pll_cur_bias_type = self.sel_bias_type
-        self.last_mlm_name = mlm.model.config._name_or_path
+        self.last_mlm_name = model_name
     
-    def compute_individual_bias(self, mlm: BertHuggingfaceMLM):
-        self.compute_PLL(mlm)
+    def compute_individual_bias(self, model_name: str, pll_compare_sent_func: Callable):
+        self.compute_PLL(model_name, pll_compare_sent_func)
         
         self.individual_biases = []
         for i in range(len(self.pll_more)):
@@ -210,8 +209,8 @@ class CrowSPairsDataset(BiasDataset):
             else: #antistereo
                 self.individual_biases.append(self.pll_less[i]-self.pll_more[i])
         
-    def compute_group_bias(self, mlm: BertHuggingfaceMLM):
-        self.compute_PLL(mlm)
+    def compute_group_bias(self, model_name: str, pll_compare_sent_func: Callable):
+        self.compute_PLL(model_name, pll_compare_sent_func)
         
         stereo_more_likely = []
         for i in range(len(self.pll_more)):
@@ -446,9 +445,9 @@ class BiosDataset(BiasDataset):
         
         # AUC
         self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
-        print("subgroup AUC:", self.subgroup_auc)
-        print("BPSN:", self.bpsn)
-        print("BNSP:", self.bnsp)
+        #print("subgroup AUC:", self.subgroup_auc)
+        #print("BPSN:", self.bpsn)
+        #print("BNSP:", self.bnsp)
         
         
 
@@ -462,12 +461,14 @@ class JigsawDataset(BiasDataset):
     def __init__(self, n_folds: int, dataset_dir: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
         super(JigsawDataset, self).__init__()
         dataset = load_dataset("jigsaw_unintended_bias", data_dir=dataset_dir)
+        print("successfully loaded dataset")
         
         self.labels = sel_labels
         self.groups_by_bias_types = {bt: groups_by_bias_types[bt] for bt in bias_types}
         self.bias_types = self.groups_by_bias_types.keys()
         
         self.transform_data(dataset)
+        print("finished transforming the dataset")
         
         self.sel_bias_type = None
         self.sel_groups = []
@@ -491,12 +492,16 @@ class JigsawDataset(BiasDataset):
             return False
         
         self.sel_bias_type = bias_type
-        self.sel_groups = self.groups_by_bias_types[bias_type]
+        self.sel_groups = self.groups_by_bias_types[bias_type]+['none']
         
-        self.sel_data = []
+        self.sel_data = self.data #[]
         for sample in self.data:
-            if self.sel_bias_type in sample['bias_type']:
-                self.sel_data.append(sample)
+            new_sample = sample
+            if new_sample['group'] not in self.sel_groups:
+                new_sample['group'] = 'none'
+            self.sel_data.append(new_sample)
+        #    if self.sel_bias_type in sample['bias_type']:
+        #        self.sel_data.append(sample)
             
         idx = 0
         for sample in self.sel_data:
@@ -528,9 +533,9 @@ class JigsawDataset(BiasDataset):
         self.eval_data = self.data_folds[fold_id]
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
         
-        print("got ", len(self.eval_data), "eval samples")
-        print("got ", len(self.train_data), "train samples")
-        print("max train id is: ", np.max([sample['id'] for sample in self.train_data]))
+        #print("got ", len(self.eval_data), "eval samples")
+        #print("got ", len(self.train_data), "train samples")
+        #print("max train id is: ", np.max([sample['id'] for sample in self.train_data]))
         
     def translate_group_name(self, group):
         if group == 'homosexual':
@@ -544,7 +549,7 @@ class JigsawDataset(BiasDataset):
         if sample['identity_annotator_count'] == 0:
             return None
         
-        label = np.zeros(len(self.labels))
+        label = np.zeros(len(self.labels)+1)
         for i, lbl in enumerate(self.labels):
             if sample[lbl] > 0.66: # 2/3 majority vote
                 label[i] = 1
@@ -566,7 +571,7 @@ class JigsawDataset(BiasDataset):
             return None
         
         if np.sum(label) == 0:
-            return None
+            label[-1] = 1 # default class for non-harmful content
         
         # TODO: can we get actual counterfactuals?
         new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 
@@ -588,8 +593,7 @@ class JigsawDataset(BiasDataset):
             if new_sample is not None:
                 self.data.append(new_sample)
         self.data = shuffle(self.data, random_state=0)
-        
-        print(self.data[0])
+        self.labels += ['none']
             
     def get_neutral_samples_by_masking(self, attributes): 
         neutral_sent = []
@@ -603,7 +607,7 @@ class JigsawDataset(BiasDataset):
             labels.append(sample['label'])
             groups.append(sample['group'])
             
-        print("used ", len(self.sel_data), "selected samples to create ", len(neutral_sent), " neutral samples")
+        #print("used ", len(self.sel_data), "selected samples to create ", len(neutral_sent), " neutral samples")
             
         return neutral_sent, labels, groups
         

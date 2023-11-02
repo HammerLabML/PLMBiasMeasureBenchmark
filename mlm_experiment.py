@@ -28,7 +28,7 @@ from torch.utils.data import DataLoader, TensorDataset
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, RIPA, MAC, normalize, cossim, EmbSetList, EmbSet, GeometricBias
 from unmasking_bias import PLLBias
 
-from utils import CLFHead, SimpleCLFHead, MLMHead, CustomModel, CrowSPairsDataset, JigsawDataset, BiosDataset
+from utils import CLFHead, SimpleCLFHead, MLMPipeline, CustomModel, CrowSPairsDataset, JigsawDataset, BiosDataset
 
 
 with open('data/protected_groups.json', 'r') as f:
@@ -89,20 +89,26 @@ def run_mlm_experiments(exp_config: dict):
             batch_size = 1
         else:
             batch_size = batch_size_lookup[model_name]
-        mlm = BertHuggingfaceMLM(model_name=model_name, batch_size=batch_size)
-        # TODO check debias
+            
+        attributes = [terms_by_groups[group] for group in groups_by_bias_types[params['bias_type']]]
+        
+        debias_ks = []
+        if params['debias']:
+            debias_ks = params['debias_k']
+        pipeline = MLMPipeline(parameters={'debias': params['debias'], 'debias_k': debias_ks, 'batch_size': batch_size}, model_name=model_name)
+        if params['debias']:
+            pipeline.fit_debias(attributes)
 
-        csp_dataset.compute_group_bias(mlm)
-        csp_dataset.compute_individual_bias(mlm)
+        csp_dataset.compute_group_bias(pipeline.model_name, pipeline.compare_sentence_likelihood)
+        csp_dataset.compute_individual_bias(pipeline.model_name, pipeline.compare_sentence_likelihood)
         cur_result = {'id': i, 'extrinsic_individual': csp_dataset.individual_biases, 'extrinsic': csp_dataset.bias_score}
 
-        attributes = [terms_by_groups[group] for group in groups_by_bias_types[params['bias_type']]]
-        attr_emb = [mlm.embed(attr) for attr in attributes]
+        attr_emb = [pipeline.embed(attr, average='mean') for attr in attributes]
 
-        targets, group_label = csp_dataset.get_neutral_samples_by_masking(mlm.tokenizer)
+        targets, group_label = csp_dataset.get_neutral_samples_by_masking(pipeline.tokenizer)
         assert len(set(group_label)) == n_groups
 
-        target_emb = mlm.embed(targets)
+        target_emb = pipeline.embed(targets, average='mean')
 
         # sorted by stereotypical group
         target_emb_per_group = []
@@ -135,8 +141,9 @@ def run_mlm_experiments(exp_config: dict):
         print()
         
         # remove model from GPU
-        mlm.model.to('cpu')
-        del mlm
+        pipeline.embedder.to('cpu')
+        pipeline.head.to('cpu')
+        del pipeline
         torch.cuda.empty_cache()
         
     with open(save_file, 'wb') as handle:
