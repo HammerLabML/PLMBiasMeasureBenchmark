@@ -44,18 +44,17 @@ def run_clf_experiments(exp_config: dict):
                 for head in exp_config['clf_heads']:
                     for optim in exp_config['clf_optimizer']:
                         for crit in exp_config['clf_criterion']:
-                            for lr in exp_config['lr']:
-                                # one without debias anyway
-                                params = {key: exp_config[key] for key in ['bias_scores', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
-                                params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
-                                               'optimizer': optim, 'criterion': crit, 'lr': lr, 'debias': False})
-                                exp_parameters.append(params)
-                                if exp_config['debias']:
-                                    for k in exp_config['debias_k']:
-                                        params = {key: exp_config[key] for key in ['bias_scores', 'debias', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
-                                        params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
-                                                       'optimizer': optim, 'criterion': crit, 'lr': lr, 'debias_k': k})
-                                        exp_parameters.append(params)        
+                            # one without debias anyway
+                            params = {key: exp_config[key] for key in ['bias_scores', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
+                            params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
+                                           'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias': False})
+                            exp_parameters.append(params)
+                            if exp_config['debias']:
+                                for k in exp_config['debias_k']:
+                                    params = {key: exp_config[key] for key in ['bias_scores', 'debias', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
+                                    params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
+                                                   'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias_k': k})
+                                    exp_parameters.append(params)        
                             
     # load the datasets    
     bios_merged_file = exp_config['bios_file']

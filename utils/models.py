@@ -130,11 +130,19 @@ class CustomModel():
             self.criterion = criterions[parameters['criterion']](pos_weight=class_weights)
         else:
             self.criterion = criterions[parameters['criterion']]()
-        self.lr = parameters['lr']
-        self.optimizer = optimizer[parameters['optimizer']](params=self.model.parameters(), lr=self.lr)
+        self.param_optimizer = parameters['optimizer']
+        if type(parameters['lr']) == float:
+            set_lr(parameters['lr'])
+    
+    def set_lr(self, lr):
+        self.lr = lr
+        self.optimizer = optimizer[self.param_optimizer](params=self.model.parameters(), lr=self.lr)
         
 
     def fit(self, X, y, epochs=2, weights=None):
+        if self.optimizer is None:
+            print("optimizer is not set, call set_lr() with a valid learning rate or provide a valid learning rate among the parameters during initialization")
+            return
         if weights is not None:
             dataset = TensorDataset(torch.tensor(X), torch.tensor(y), torch.tensor(weights))
         else:
@@ -542,6 +550,7 @@ class DebiasPipeline():
         self.clf = CustomModel(parameters, head, class_weights=class_weights)
         self.debiaser = None
         self.debias_k = None
+        self.learning_rates = parameters['lr']
         if debias:
             self.debiaser = Debias()
             self.debias_k = parameters['debias_k']
@@ -574,36 +583,43 @@ class DebiasPipeline():
             emb = self.debiaser.predict(emb, self.debias_k)
         
         print("fit clf head...")
-        if optimize_theta:
+        if type(self.learning_rates) == list and len(self.learning_rates) > 1:
             if weights is not None:
                 emb_train, emb_val, y_train, y_val, w_train, w_val = train_test_split(emb, y, weights, test_size=0.1, random_state=0)
             else:
                 w_train = None
                 emb_train, emb_val, y_train, y_val = train_test_split(emb, y, test_size=0.1, random_state=0)
-            self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
-        
-            print("optimize classification threshold...")
-            pred = self.clf.predict(emb_val)
+                
             best_score = 0
-            for theta in np.arange(0.2, 0.8, 0.05):
-                y_pred = (np.array(pred) >= theta).astype(int)
+            best_lr = self.learning_rates[0]
+            print("optimize learning rate...")
+            for lr in self.learning_rates:
+                self.clf.set_lr(lr)
+                self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
+                pred = self.clf.predict(emb_val)
+                y_pred = (np.array(pred) >= self.theta).astype(int)
                 score = self.validation_score(y_val, y_pred, average='weighted')
                 class_wise_recall = recall_score(y_val, y_pred, average=None)
                 if score > best_score and np.min(class_wise_recall) > 0.01:
-                    self.theta = theta
                     best_score = score
-            print("use theta="+str(self.theta)+" which achieves:")
+                    best_lr = lr
+            
+            if best_lr != self.learning_rates[-1]:
+                self.clf.set_lr(best_lr)
+                self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
+            print("trained with lr="+str(best_lr)+" which achieved (train+val):")
             
         else:
-            print(type(emb))
+            if type(self.learning_rates) == list:
+                self.clf.set_lr(self.learning_rates[0])
             self.clf.fit(emb, y, epochs=epochs)
-            self.theta = 0.5
-            
+        
+        pred = self.clf.predict(emb)
         y_pred = (np.array(pred) >= self.theta).astype(int)
-        recall = recall_score(y_val, y_pred, average='weighted')
-        precision = precision_score(y_val, y_pred, average='weighted')
-        f1 = f1_score(y_val, y_pred, average='weighted')
-        class_recall = recall_score(y_val, y_pred, average=None)
+        recall = recall_score(y, y_pred, average='weighted')
+        precision = precision_score(y, y_pred, average='weighted')
+        f1 = f1_score(y, y_pred, average='weighted')
+        class_recall = recall_score(y, y_pred, average=None)
         print("recall\t\t= "+str(recall))
         print("precision\t= "+str(precision))
         print("f1\t\t= "+str(f1))
