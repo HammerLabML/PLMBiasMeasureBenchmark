@@ -221,6 +221,15 @@ class SequentialHead(torch.nn.Module):
         super().__init__()
         self.heads = heads
         
+    def to(self, device):
+        for head in self.heads:
+            head = head.to(device)
+            
+    def eval(self):
+        for head in self.heads:
+            head.eval()
+    # TODO: same for training
+        
     def forward(self, x):
         for head in self.heads:
             x = head(x)

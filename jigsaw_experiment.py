@@ -85,10 +85,10 @@ def run_clf_experiments(exp_config: dict):
                         sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1
 
             df = pd.DataFrame(sample_dist)
-            print("class/group distribution:")
-            with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
-                print(df)
-            print()
+            #print("class/group distribution:")
+            #with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
+            #    print(df)
+            #print()
 
             samples_per_group = [np.sum(df.loc[group]) for group in jigsaw_dataset.sel_groups]
             classes_by_majority_group = {group: [] for group in jigsaw_dataset.sel_groups}
@@ -125,11 +125,12 @@ def run_clf_experiments(exp_config: dict):
         #print("embed all raw bios...")
         #bios_emb_all = lm.embed([sample['text'] for sample in jigsaw_dataset.sel_data])
         
-        print("embed all neutralized samples...")
+        print("embed samples...")
+        #print("embed all neutralized samples...")
         targets, labels, group_label = jigsaw_dataset.get_neutral_samples_by_masking(attributes)
         assert len(set(group_label)) == n_groups
         
-        print("embed ", len(targets), "neutral target samples")
+        #print("embed ", len(targets), "neutral target samples")
         target_emb_all = lm.embed(targets)
             
         # TODO ROC AUC bias
@@ -155,8 +156,8 @@ def run_clf_experiments(exp_config: dict):
 
             df = pd.DataFrame(sample_dist)
             
-            print("train data stats for fold ", fold_id)
-            print(df)
+            #print("train data stats for fold ", fold_id)
+            #print(df)
             class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in jigsaw_dataset.labels} for g in jigsaw_dataset.sel_groups}
             class_weights = [(len(jigsaw_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl]) for lbl in jigsaw_dataset.labels]
             print("class weights: ")
@@ -197,9 +198,9 @@ def run_clf_experiments(exp_config: dict):
             eval_ids = [sample['id'] for sample in jigsaw_dataset.eval_data]
             emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
             y_eval = np.asarray([sample['label'] for sample in jigsaw_dataset.eval_data])
-            print("positive eval samples per class:")
-            print(np.sum(y_eval, axis=0))
-            print(jigsaw_dataset.labels)
+            #print("positive eval samples per class:")
+            #print(np.sum(y_eval, axis=0))
+            #print(jigsaw_dataset.labels)
             jigsaw_dataset.group_bias(pipeline.predict, emb_eval)
             cur_result['extrinsic_individual'].append(jigsaw_dataset.bias_score) # class-wise GAPs
             cur_result['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
