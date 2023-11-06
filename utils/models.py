@@ -283,21 +283,22 @@ class MLMPipeline():
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name, max_length=512, truncation=True, padding=True)
         self.embedder = AutoModelForMaskedLM.from_pretrained(model_name, return_dict=True, output_hidden_states=True)
+        self.softmax = torch.nn.LogSoftmax(dim=2)
+        
+        # transfer whole model to gpu before splitting it
+        if torch.cuda.is_available():
+            self.embedder = self.embedder.to('cuda')
+            #self.head = self.head.to('cuda')
+            self.softmax = self.softmax.to('cuda')
+        self.embedder.eval()
+        
         self.head = None
         self.split_mlm(self.embedder)
         self.batch_size = parameters['batch_size']
-        self.softmax = torch.nn.LogSoftmax(dim=2)
         
         self.special_tokens_ids = [self.tokenizer.cls_token_id, self.tokenizer.eos_token_id, self.tokenizer.bos_token,
                                    self.tokenizer.sep_token_id, self.tokenizer.pad_token_id, self.tokenizer.unk_token_id,
                                    self.tokenizer.mask_token_id] + self.tokenizer.additional_special_tokens_ids
-        
-        if torch.cuda.is_available():
-            self.embedder = self.embedder.to('cuda')
-            self.head = self.head.to('cuda')
-            self.softmax = self.softmax.to('cuda')
-        self.embedder.eval()
-        self.head.eval()
         
         self.debiaser = None
         self.debias_k = None
