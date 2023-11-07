@@ -118,6 +118,8 @@ def run_mlm_experiments(exp_config: dict):
         assert len(set(group_label)) == n_groups
 
         target_emb = pipeline.embed(targets, average='mean')
+        if params['debias']:
+            target_emb = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
 
         # sorted by stereotypical group
         target_emb_per_group = []
