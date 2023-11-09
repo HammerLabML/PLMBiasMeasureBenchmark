@@ -119,7 +119,9 @@ def run_mlm_experiments(exp_config: dict):
 
         target_emb = pipeline.embed(targets, average='mean')
         if params['debias']:
-            target_emb = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
+            target_emb2 = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
+            print(target_emb2 == target_emb)
+            target_emb = target_emb2
 
         # sorted by stereotypical group
         target_emb_per_group = []
@@ -146,6 +148,10 @@ def run_mlm_experiments(exp_config: dict):
 
             cur_result.update({score: bias})
         results.append(cur_result)
+        
+        if exp_parameters[i+1]['debias'] != params['debias'] or exp_parameters[i+1]['debias_k'] != params['debias_k']:
+            print("reset PLL results")
+            csp_dataset.pll_cur_bias_type = None # reset to make sure that PLL will be computed in next iteration
         
         with open(save_file, 'wb') as handle:
             pickle.dump({'params': exp_parameters, 'results': results}, handle)
