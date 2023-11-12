@@ -65,7 +65,7 @@ def run_mlm_experiments(exp_config: dict):
                 
                 if exp_config['debias']:
                     # one without debias
-                    params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False}
+                    params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False, 'debias_k': 0}
                     exp_parameters.append(params)
                     for k in exp_config['debias_k']:
                         params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False, 'debias_k': k}
