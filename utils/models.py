@@ -132,7 +132,7 @@ class CustomModel():
             self.criterion = criterions[parameters['criterion']]()
         self.param_optimizer = parameters['optimizer']
         if type(parameters['lr']) == float:
-            set_lr(parameters['lr'])
+            self.set_lr(parameters['lr'])
     
     def set_lr(self, lr):
         self.lr = lr
