@@ -31,8 +31,9 @@ class WordVectorWrapper():
     def __init__(self, model_name):
         self.model_name = model_name
         self.word_vectors = gensim.downloader.load(model_name)
-        self.emb_size = self.word_vectors[0].shape
+        self.emb_size = self.word_vectors[0].shape[0]
         self.zero_vec = np.zeros(self.word_vectors[0].shape)
+        print("initialized wordVectorWrapper with emb size ", self.emb_size)
     
     def __call__(self, texts):
         return self.embed(texts)
@@ -41,7 +42,6 @@ class WordVectorWrapper():
         vectors = []
         for word in words:
             if word in self.word_vectors:
-                print(self.word_vectors[word])
                 vectors.append(self.word_vectors[word])
         if len(vectors) == 0:
             return self.zero_vec

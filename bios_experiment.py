@@ -110,6 +110,7 @@ def run_clf_experiments(exp_config: dict):
             #cur_result_test.update({score: [], score+'_individual': []})
             
         # attributes are independent from data/ fold
+        print("load model ", model_name)
         """models = ['fasttext-wiki-news-subwords-300',
             'conceptnet-numberbatch-17-06-300',
             'word2vec-ruscorpora-300',
