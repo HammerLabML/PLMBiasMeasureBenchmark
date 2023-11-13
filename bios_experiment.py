@@ -10,7 +10,7 @@ import getopt
 
 from embedding import BertHuggingface
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, MAC, normalize, cossim, EmbSetList, EmbSet, GeometricBias
-from utils import CLFHead, SimpleCLFHead, CustomModel, JigsawDataset, BiosDataset, DebiasPipeline, upsample_defining_embeddings
+from utils import CLFHead, SimpleCLFHead, CustomModel, JigsawDataset, BiosDataset, DebiasPipeline, upsample_defining_embeddings, WordVectorWrapper
 
 with open('data/protected_groups.json', 'r') as f:
     pg_config = json.load(f)
@@ -110,8 +110,28 @@ def run_clf_experiments(exp_config: dict):
             #cur_result_test.update({score: [], score+'_individual': []})
             
         # attributes are independent from data/ fold
-        lm = BertHuggingface(model_name=model_name, batch_size=batch_size, num_labels=2)
-        emb_size = lm.model.config.hidden_size
+        """models = ['fasttext-wiki-news-subwords-300',
+            'conceptnet-numberbatch-17-06-300',
+            'word2vec-ruscorpora-300',
+            'word2vec-google-news-300',
+            'glove-wiki-gigaword-50',
+            'glove-wiki-gigaword-100',
+            'glove-wiki-gigaword-200',
+            'glove-wiki-gigaword-300',
+            'glove-twitter-25',
+            'glove-twitter-50',
+            'glove-twitter-100',
+            'glove-twitter-200']"""
+        is_hugginface_model = True
+        if 'fasttext' in model_name or 'word2vec' in model_name or 'glove' in model_name or 'conceptnet' in model_name:
+            is_hugginface_model = False
+            
+        if is_hugginface_model:
+            lm = BertHuggingface(model_name=model_name, batch_size=batch_size, num_labels=2)
+            emb_size = lm.model.config.hidden_size
+        else:
+            lm = WordVectorWrapper(model_name)
+            emb_size = lm.emb_size
         
         attributes = [terms_by_groups[group] for group in groups_by_bias_types[params['bias_type']]]
         attr_emb = [lm.embed(attr) for attr in attributes]
@@ -130,9 +150,9 @@ def run_clf_experiments(exp_config: dict):
         # TODO ROC AUC bias
         for fold_id in range(params['n_fold']):
             if params['head'] == 'SimpleCLFHead':
-                head = SimpleCLFHead(input_size=lm.model.config.hidden_size, output_size=n_classes)
+                head = SimpleCLFHead(input_size=emb_size, output_size=n_classes)
             elif params['head'] == 'CLFHead':
-                head = CLFHead(input_size=lm.model.config.hidden_size, output_size=n_classes, hidden_size=lm.model.config.hidden_size)
+                head = CLFHead(input_size=emb_size, output_size=n_classes, hidden_size=emb_size)
             else:
                 print("invalid clf head: ", params['head'])
                 break
@@ -227,10 +247,17 @@ def run_clf_experiments(exp_config: dict):
                 cur_score.define_bias_space(np.asarray(attr_emb))
 
                 if not score == 'gWEAT':
-                    individual_biases = [cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
-                    cur_result[score+'_individual'].append(individual_biases)
-                    class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                    cur_result[score+'_classwise'].append(class_biases)
+                    if score == 'SAME' and n_groups == 2:
+                        individual_biases = [cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        cur_result[score+'_individual'].append(individual_biases)
+                        class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        cur_result[score+'_classwise'].append(class_biases)
+
+                    else:
+                        individual_biases = [cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        cur_result[score+'_individual'].append(individual_biases)
+                        class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        cur_result[score+'_classwise'].append(class_biases)
 
                 if score in ['WEAT', 'gWEAT']:
                     bias = cur_score.group_bias(target_emb_per_group)
@@ -241,7 +268,8 @@ def run_clf_experiments(exp_config: dict):
                 cur_result[score].append(bias)
             
         # remove model from GPU
-        lm.model.to('cpu')
+        if is_hugginface_model:
+            lm.model.to('cpu')
         del lm
         torch.cuda.empty_cache()
         

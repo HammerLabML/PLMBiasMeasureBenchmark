@@ -2,6 +2,8 @@ import numpy as np
 import math
 from tqdm import tqdm
 
+import string
+import gensim.downloader
 import torch
 from torch import Tensor
 from torch.utils.data import DataLoader, TensorDataset
@@ -18,6 +20,42 @@ from transformers.tokenization_utils_base import BatchEncoding
 
 optimizer = {'RMSprop': torch.optim.RMSprop, 'Adam': torch.optim.Adam}
 criterions = {'BCEWithLogitsLoss': torch.nn.BCEWithLogitsLoss, 'MultiLabelSoftMarginLoss': torch.nn.MultiLabelSoftMarginLoss}
+
+def remove_punctuation(input_string):
+    translator = str.maketrans("", "", string.punctuation)
+    result = input_string.translate(translator)
+    return result
+
+class WordVectorWrapper():
+    
+    def __init__(self, model_name):
+        self.model_name = model_name
+        self.word_vectors = gensim.downloader.load(model_name)
+        self.emb_size = self.word_vectors[0].shape
+        self.zero_vec = np.zeros(self.word_vectors[0].shape)
+    
+    def __call__(self, texts):
+        return self.embed(texts)
+        
+    def words2Emb(self, words):
+        vectors = []
+        for word in words:
+            if word in self.word_vectors:
+                print(self.word_vectors[word])
+                vectors.append(self.word_vectors[word])
+        if len(vectors) == 0:
+            return self.zero_vec
+        else:
+            return np.mean(np.asarray(vectors), axis=0)
+        
+    def embed(self, texts):
+        emb = []
+        for text in texts:
+            words = remove_punctuation(text).split(' ')
+            vector = self.words2Emb(words)
+            emb.append(vector)
+            
+        return np.vstack(emb)
 
 class Debias():
 
@@ -346,7 +384,7 @@ class MLMPipeline():
             encodings = texts
         else:
             encodings = self.tokenizer(texts, return_tensors='pt', padding=True, truncation=True)
-            
+        
         dataset = MLMDataset(encodings)
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
 
