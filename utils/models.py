@@ -639,10 +639,13 @@ class DebiasPipeline():
         
         return recall, precision, f1, class_recall
     
-    def predict(self, emb: np.ndarray):
+    def predict(self, emb: np.ndarray, as_proba=False):
         if self.debiaser is not None and self.debiaser.pca is not None:
             emb = self.debiaser.predict(emb, k=self.debias_k)
         
         pred = self.clf.predict(emb)
+        if as_proba:
+            return pred
+        
         y_pred = (np.array(pred) >= self.theta).astype(int)
         return y_pred

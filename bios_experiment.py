@@ -103,10 +103,10 @@ def run_clf_experiments(exp_config: dict):
         else:
             batch_size = batch_size_lookup[model_name]
         
-        cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': []} # cosine scores on training data
+        cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'extrinsic_classwise': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': []} # cosine scores on training data
         #cur_result_test = {'id': i, 'extrinsic': [], 'extrinsic_individual': []} # cosine scores on test data
         for score in cosine_scores:
-            cur_result.update({score: [], score+'_individual': []})
+            cur_result.update({score: [], score+'_individual': [], score+'_classwise': []})
             #cur_result_test.update({score: [], score+'_individual': []})
             
         # attributes are independent from data/ fold
@@ -117,12 +117,15 @@ def run_clf_experiments(exp_config: dict):
         attr_emb = [lm.embed(attr) for attr in attributes]
         
         #print("embed all raw bios...")
-        #bios_emb_all = lm.embed([sample['text'] for sample in bios_dataset.sel_data])
+        target_emb_all = lm.embed([sample['text'] for sample in bios_dataset.sel_data])
         
-        print("embed all neutralized bios...")
-        targets, labels, group_label = bios_dataset.get_neutral_samples_by_masking(attributes)
-        assert len(set(group_label)) == n_groups
-        target_emb_all = lm.embed(targets)
+        print("embed all counterfactual bios...")
+        targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
+        assert len(set(groups_cf)) == n_groups
+        cf_emb_all = lm.embed(targets_cf)
+        #targets, labels, group_label = bios_dataset.get_neutral_samples_by_masking(attributes)
+        #assert len(set(group_label)) == n_groups
+        #target_emb_all = lm.embed(targets)
             
         # TODO ROC AUC bias
         for fold_id in range(params['n_fold']):
@@ -185,79 +188,26 @@ def run_clf_experiments(exp_config: dict):
             # compute the bias
             print("compute extrinsic biases...")
             eval_ids = [sample['id'] for sample in bios_dataset.eval_data]
-            emb_eval = np.asarray([target_emb_all[i] for i in eval_ids]) # 
+            emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
+            emb_eval_cf = np.asarray([cf_emb_all[i] for i in eval_ids])
+            bios_dataset.individual_bias(pipeline.predict, emb_eval, emb_eval_cf)
             bios_dataset.group_bias(pipeline.predict, emb_eval)
-            cur_result['extrinsic_individual'].append(bios_dataset.bias_score) # class-wise GAPs
+            cur_result['extrinsic_individual'].append(bios_dataset.individual_biases)
+            cur_result['extrinsic_classwise'].append(bios_dataset.bias_score) # class-wise GAPs
             cur_result['extrinsic'].append(np.mean(np.abs(bios_dataset.bias_score)))
             cur_result['subgroup_AUC'].append(bios_dataset.subgroup_auc)
             cur_result['BPSN'].append(bios_dataset.bpsn)
             cur_result['BNSP'].append(bios_dataset.bnsp)
-            #cur_result_test['extrinsic_individual'].append(bios_dataset.bias_score) # class-wise GAPs
-            #cur_result_test['extrinsic'].append(np.mean(np.abs(bios_dataset.bias_score)))
-            
-            """
-            # compute cosine scores on training data (this makes more sense)
-            print("compute cosine scores...")
-            target_emb = emb #[target_emb_all[i] for i in train_ids]
-            if params['debias']:
-                target_emb = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
-            target_label = [labels[i] for i in train_ids]
-            target_groups = [group_label[i] for i in train_ids]
-            target_emb_per_group = []
-            for group in range(max(group_label)+1):
-                group_name = bios_dataset.sel_groups[group]
-                emb = []
-                for i in range(len(train_ids)):
-                    for lbl in classes_by_majority_group[group_name]:
-                        lbl_idx = titles.index(lbl)
-                        if target_label[i][lbl_idx] == 1:
-                            emb.append(target_emb[i])
-                target_emb_per_group.append(emb)
-
-            
-            for score in params['bias_scores']:
-                if score == 'WEAT' and n_groups > 2:
-                    cur_result[score].append(math.nan)
-                    continue
-
-                cur_score = cosine_scores[score]()
-                cur_score.define_bias_space(attr_emb)
-
-                if not score == 'gWEAT':
-                    # TODO: per class then mean
-                    class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                    cur_result[score+'_individual'].append(class_biases)
-
-                if score in ['WEAT', 'gWEAT']:
-                    bias = cur_score.group_bias(target_emb_per_group)
-                else:
-                    # SAME, DirectBias, MAC
-                    bias = cur_score.mean_individual_bias(target_emb)
-
-                cur_result[score].append(bias)
-            """
-            """
-            # prepare defining embeddings (from dataset)
-            n_groups = max(group_label)+1
-            emb_per_group = []
-            for group in range(n_groups):
-                emb_per_group.append([e for i, e in enumerate(emb) if groups[i] == group])
-            
-            # upsample to have equal sized groups
-            print("upsample attribute embeddings...")
-            emb_per_group = upsample_defining_embeddings(emb_per_group)
-            """
-
             
             # also compute cosine scores on test data
             print("compute cosine scores on eval data...")
             target_emb = [target_emb_all[i] for i in eval_ids]
             if params['debias']:
                 target_emb = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
-            target_label = [labels[i] for i in eval_ids]
-            target_groups = [group_label[i] for i in eval_ids]
+            target_label = [labels_cf[i] for i in eval_ids]
+            target_groups = [groups_cf[i] for i in eval_ids]
             target_emb_per_group = []
-            for group in range(max(group_label)+1):
+            for group in range(max(groups_cf)+1):
                 group_name = bios_dataset.sel_groups[group]
                 emb = []
                 for i in range(len(eval_ids)):
@@ -274,12 +224,13 @@ def run_clf_experiments(exp_config: dict):
                     continue
 
                 cur_score = cosine_scores[score]()
-                cur_score.define_bias_space(np.asarray(attr_emb))#np.asarray(emb_per_group))
+                cur_score.define_bias_space(np.asarray(attr_emb))
 
                 if not score == 'gWEAT':
-                    # TODO: per class then mean
+                    individual_biases = [cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
+                    cur_result[score+'_individual'].append(individual_biases)
                     class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                    cur_result[score+'_individual'].append(class_biases)
+                    cur_result[score+'_classwise'].append(class_biases)
 
                 if score in ['WEAT', 'gWEAT']:
                     bias = cur_score.group_bias(target_emb_per_group)

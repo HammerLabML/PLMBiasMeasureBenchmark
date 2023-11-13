@@ -1,6 +1,7 @@
 import difflib
 import string
 
+import os
 import datasets
 import pandas as pd
 from datasets import load_dataset
@@ -17,6 +18,7 @@ from collections.abc import Callable
 import numpy as np
 import math
 import pickle
+import time
 
 class BiasDataset():
     
@@ -424,11 +426,44 @@ class BiosDataset(BiasDataset):
             
         return neutral_sent, labels, groups
     
-    def individual_bias(self, sample: dict):
-        pass
+    def get_counterfactual_samples(self, attributes):        
+        cf_sent = []
+        labels = []
+        groups = []
+        for sample in self.sel_data:
+            bio = sample['text'].lower()
+            true_group = sample['group']
+            cf_group = 1-true_group
+            for i, attr in enumerate(attributes[true_group]):
+                cf_attr = attributes[cf_group][i]
+                bio = bio.replace(' '+attr+' ', ' '+cf_attr+' ')
+            cf_sent.append(bio)
+            labels.append(sample['label'])
+            groups.append(sample['group'])
+            
+        return cf_sent, labels, groups
+    
+    def individual_bias(self, prediction_wrapper: Callable, emb, emb_cf):
+        assert len(emb) == len(self.eval_data)
+        self.individual_biases = []
         
-        # BIOS:
-        # ?? counterfactual prediction diff/ bool does prediction change
+        y_true = np.asarray([sample['label'] for sample in self.eval_data])
+        groups = np.asarray([sample['group'] for sample in self.eval_data])
+        #sent = [sample['text'] for sample in self.eval_data]
+        
+        y_pred = prediction_wrapper(emb, as_proba=True)
+        y_pred_cf = prediction_wrapper(emb_cf, as_proba=True)
+        
+        for i in range(y_pred.shape[0]):
+            y_pred_i = y_pred[i,:]
+            y_pred_cf_i = y_pred_cf[i,:]
+            y_true_i = y_true[i,:]
+            bias = np.sum(np.abs(y_pred_i[y_true_i==1]-y_pred_cf_i[y_true_i==1]))
+            self.individual_biases.append(bias)
+            
+        # percentage of cases where the counterfactual influences a positive prediction (for binary predictions)
+        #bias = np.sum(np.abs(y_pred[y_true==1]-y_pred_cf[y_true==1])) / np.sum(y_true)
+        
     
     def group_bias(self, prediction_wrapper: Callable, emb):
         assert len(emb) == len(self.eval_data)
@@ -458,17 +493,32 @@ class BiosDataset(BiasDataset):
         
 class JigsawDataset(BiasDataset):
     
-    def __init__(self, n_folds: int, dataset_dir: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
+    def __init__(self, n_folds: int, dataset_dir: str, dataset_checkpoint: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
         super(JigsawDataset, self).__init__()
+        start_time = time.time()
         dataset = load_dataset("jigsaw_unintended_bias", data_dir=dataset_dir)
-        print("successfully loaded dataset")
+        end_time = time.time()
+        print("successfully loaded dataset from the filesystem")
+        print("this took ", end_time-start_time, "seconds")
         
         self.labels = sel_labels
         self.groups_by_bias_types = {bt: groups_by_bias_types[bt] for bt in bias_types}
         self.bias_types = self.groups_by_bias_types.keys()
         
-        self.transform_data(dataset)
-        print("finished transforming the dataset")
+        if os.path.isfile(dataset_checkpoint):
+            print("load transformed dataset from checkpoint")
+            with open(dataset_checkpoint, 'rb') as handle:
+                self.data = pickle.load(handle)
+            del dataset
+        else:
+            start_time = time.time()
+            self.transform_data(dataset)
+            del dataset
+            end_time = time.time()
+            print("finished transforming the dataset")
+            print("this took ", end_time-start_time, "seconds")
+            with open(dataset_checkpoint, 'wb') as handle:
+                pickle.dump(self.data, handle)
         
         self.sel_bias_type = None
         self.sel_groups = []
@@ -492,16 +542,12 @@ class JigsawDataset(BiasDataset):
             return False
         
         self.sel_bias_type = bias_type
-        self.sel_groups = self.groups_by_bias_types[bias_type]+['none']
+        self.sel_groups = self.groups_by_bias_types[bias_type]
         
-        self.sel_data = self.data #[]
+        self.sel_data = []
         for sample in self.data:
-            new_sample = sample
-            if new_sample['group'] not in self.sel_groups:
-                new_sample['group'] = 'none'
-            self.sel_data.append(new_sample)
-        #    if self.sel_bias_type in sample['bias_type']:
-        #        self.sel_data.append(sample)
+            if self.sel_bias_type in sample['bias_type']:
+                self.sel_data.append(sample)
             
         idx = 0
         for sample in self.sel_data:
@@ -524,6 +570,9 @@ class JigsawDataset(BiasDataset):
             with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
                 print(df)
             print()
+            
+        y = np.asarray([sample['label'] for sample in self.sel_data])
+        print("y shape:", y.shape)
         
         return True
     
@@ -564,6 +613,7 @@ class JigsawDataset(BiasDataset):
                     found_groups.append(self.groups_by_bias_types[bias_type].index(group))
             #if bias_types.count(bias_type) > 1:
             #    print(sample)
+            
         if len(found_groups) == 0:
             return None
         
@@ -571,7 +621,8 @@ class JigsawDataset(BiasDataset):
             return None
         
         if np.sum(label) == 0:
-            label[-1] = 1 # default class for non-harmful content
+            return None
+#            label[-1] = 1 # default class for non-harmful content
         
         # TODO: can we get actual counterfactuals?
         new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 
@@ -593,7 +644,6 @@ class JigsawDataset(BiasDataset):
             if new_sample is not None:
                 self.data.append(new_sample)
         self.data = shuffle(self.data, random_state=0)
-        self.labels += ['none']
             
     def get_neutral_samples_by_masking(self, attributes): 
         neutral_sent = []
@@ -601,8 +651,9 @@ class JigsawDataset(BiasDataset):
         groups = []
         for sample in self.sel_data:
             bio = sample['counterfactual'].lower()
-            for attr in attributes[sample['group']]:
-                bio = bio.replace(' '+attr+' ', '_')
+            if sample['group'] < len(attributes):
+                for attr in attributes[sample['group']]:
+                    bio = bio.replace(' '+attr+' ', '_')
             neutral_sent.append(bio)
             labels.append(sample['label'])
             groups.append(sample['group'])
