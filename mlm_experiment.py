@@ -72,6 +72,7 @@ def run_mlm_experiments(exp_config: dict):
                         exp_parameters.append(params)
                                    
                 exp_parameters.append(params)
+    print(exp_parameters)
                             
     # load the datasets
     csp_dataset = CrowSPairsDataset(groups_by_bias_types, terms_by_groups)
@@ -149,7 +150,7 @@ def run_mlm_experiments(exp_config: dict):
             cur_result.update({score: bias})
         results.append(cur_result)
         
-        if exp_parameters[i+1]['debias'] != params['debias'] or exp_parameters[i+1]['debias_k'] != params['debias_k']:
+        if i+1 < len(exp_parameters) and (exp_parameters[i+1]['debias'] != params['debias'] or exp_parameters[i+1]['debias_k'] != params['debias_k']):
             print("reset PLL results")
             csp_dataset.pll_cur_bias_type = None # reset to make sure that PLL will be computed in next iteration
         
