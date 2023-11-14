@@ -35,6 +35,7 @@ def run_clf_experiments(exp_config: dict):
             results = res['results']
             #results_test = res['results_eval'] 
     else:
+        print("define experiment parameters")
         exp_parameters = []
         results = []
 
@@ -58,7 +59,8 @@ def run_clf_experiments(exp_config: dict):
                                         exp_parameters.append(params)        
                             
     # load the datasets
-    jigsaw_dataset = JigsawDataset(n_folds=exp_config['n_fold'], dataset_dir=exp_config['jigsaw_dir'], bias_types=exp_config['bias_types'], 
+    print("load dataset...")
+    jigsaw_dataset = JigsawDataset(n_folds=exp_config['n_fold'], dataset_dir=exp_config['jigsaw_dir'], dataset_checkpoint=exp_config['transformed_data'], bias_types=exp_config['bias_types'], 
                                    groups_by_bias_types=groups_by_bias_types, sel_labels=exp_config['labels'])
     print("loaded JIGSAW dataset with", len(jigsaw_dataset.data), "samples")
     titles = jigsaw_dataset.labels
@@ -182,6 +184,7 @@ def run_clf_experiments(exp_config: dict):
                 weights = [class_gender_weights[cur_group][lbl]*100 for lbl in cur_labels]
                 sample_weights.append(np.max(weights))
             
+            print("y shape befor fit", y.shape)
             # fit the whole pipeline
             if params['group_weights']:
                 recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)

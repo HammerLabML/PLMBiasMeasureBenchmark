@@ -598,7 +598,7 @@ class JigsawDataset(BiasDataset):
         if sample['identity_annotator_count'] == 0:
             return None
         
-        label = np.zeros(len(self.labels)+1)
+        label = np.zeros(len(self.labels))
         for i, lbl in enumerate(self.labels):
             if sample[lbl] > 0.66: # 2/3 majority vote
                 label[i] = 1
@@ -630,6 +630,7 @@ class JigsawDataset(BiasDataset):
         return new_sample
         
     def transform_data(self, data):
+        print(self.labels)
         self.data = []
         for sample in data['train']:
             new_sample = self.transform_sample(sample)
