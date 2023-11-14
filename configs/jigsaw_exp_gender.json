@@ -1,0 +1,21 @@
+{
+"bias_types": ["gender"],
+"bias_scores": ["SAME", "WEAT", "gWEAT", "DirectBias", "MAC"], 
+"embedders": ["bert-base-uncased", "bert-large-uncased", "distilbert-base-uncased", "roberta-base", "roberta-large", "distilroberta-base", "xlm-roberta-base", "albert-base-v2", "albert-large-v2", "google/electra-base-generator", "google/electra-large-generator", "bert-base-multilingual-uncased", "GroNLP/hateBERT", "Twitter/twhin-bert-base", "medicalai/ClinicalBERT", "albert-xlarge-v2", "bert-large-uncased-whole-word-masking", "abhi1nandy2/Bible-roberta-base", "distilbert-base-uncased-finetuned-sst-2-english", "gpt2", "openai-gpt", "xlnet-base-cased"],
+"clf_heads": ["CLFHead"], 
+"debias": true, 
+"debias_k": [1, 3, 5], 
+"clf_optimizer": ["RMSprop"], 
+"clf_criterion": ["BCEWithLogitsLoss"], 
+"lr": [1e-03, 1e-04, 1e-05], 
+"batch_size": 8, 
+"n_fold": 4, 
+"epochs": 5, 
+"jigsaw_dir": "../jigsaw_bias",
+"transformed_data": "data_gender.pickle",
+"labels": ["insult", "disagree", "identity_attack", "rating", "sad", "sexual_explicit", "obscene"],
+"save_file": "results/jigsaw_gender/res.pickle", 
+"batch_size_lookup": "data/batch_size_lookup_1080.json",
+"group_weights": false,
+"validation_score": "f1"
+}
