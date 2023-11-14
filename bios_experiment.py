@@ -249,11 +249,13 @@ def run_clf_experiments(exp_config: dict):
 
                 if not score == 'gWEAT':
                     if score == 'SAME' and n_groups == 2:
+                        print("use signed SAME score for binary bias eval")
                         individual_biases = [cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label))]
                         cur_result[score+'_individual'].append(individual_biases)
                         class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
-
+                        print(individual_biases[:20])
+                        print(class_biases)
                     else:
                         individual_biases = [cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
                         cur_result[score+'_individual'].append(individual_biases)

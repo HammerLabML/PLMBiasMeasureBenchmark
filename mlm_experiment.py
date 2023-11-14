@@ -155,6 +155,7 @@ def run_mlm_experiments(exp_config: dict):
             csp_dataset.pll_cur_bias_type = None # reset to make sure that PLL will be computed in next iteration
         
         with open(save_file, 'wb') as handle:
+            print("save results at ", save_file)
             pickle.dump({'params': exp_parameters, 'results': results}, handle)
         print()
         
@@ -165,6 +166,7 @@ def run_mlm_experiments(exp_config: dict):
         torch.cuda.empty_cache()
         
     with open(save_file, 'wb') as handle:
+        print("save results at ", save_file)
         pickle.dump({'params': exp_parameters, 'results': results}, handle)
 
 run_mlm_experiments(exp_config)
