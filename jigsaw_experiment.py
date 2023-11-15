@@ -242,9 +242,12 @@ def run_clf_experiments(exp_config: dict):
                 cur_score.define_bias_space(np.asarray(attr_emb))#np.asarray(emb_per_group))
 
                 if not score == 'gWEAT':
-                    # TODO: per class then mean
-                    class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                    cur_result[score+'_individual'].append(class_biases)
+                    if score == 'SAME' and n_groups == 2:
+                        class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        cur_result[score+'_individual'].append(class_biases)
+                    else:
+                        class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        cur_result[score+'_individual'].append(class_biases)
 
                 if score in ['WEAT', 'gWEAT']:
                     bias = cur_score.group_bias(target_emb_per_group)
