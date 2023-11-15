@@ -111,18 +111,6 @@ def run_clf_experiments(exp_config: dict):
             
         # attributes are independent from data/ fold
         print("load model ", model_name)
-        """models = ['fasttext-wiki-news-subwords-300',
-            'conceptnet-numberbatch-17-06-300',
-            'word2vec-ruscorpora-300',
-            'word2vec-google-news-300',
-            'glove-wiki-gigaword-50',
-            'glove-wiki-gigaword-100',
-            'glove-wiki-gigaword-200',
-            'glove-wiki-gigaword-300',
-            'glove-twitter-25',
-            'glove-twitter-50',
-            'glove-twitter-100',
-            'glove-twitter-200']"""
         is_hugginface_model = True
         if 'fasttext' in model_name or 'word2vec' in model_name or 'glove' in model_name or 'conceptnet' in model_name:
             is_hugginface_model = False
@@ -254,8 +242,6 @@ def run_clf_experiments(exp_config: dict):
                         cur_result[score+'_individual'].append(individual_biases)
                         class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
-                        print(individual_biases[:20])
-                        print(class_biases)
                     else:
                         individual_biases = [cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
                         cur_result[score+'_individual'].append(individual_biases)
