@@ -138,7 +138,10 @@ def run_mlm_experiments(exp_config: dict):
             cur_score.define_bias_space(attr_emb)
 
             if not score == 'gWEAT':
-                individual_biases = [cur_score.individual_bias(target) for target in target_emb]
+                if score == 'SAME' and n_groups==2:
+                    individual_biases = [cur_score.signed_individual_bias(target) for target in target_emb]
+                else:
+                    individual_biases = [cur_score.individual_bias(target) for target in target_emb]
                 cur_result.update({score+'_individual': individual_biases})
 
             if score in ['WEAT', 'gWEAT']:
