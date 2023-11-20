@@ -678,7 +678,7 @@ class DebiasPipeline():
                 self.clf.set_lr(self.learning_rates[0])
             self.clf.fit(emb, y, epochs=epochs)
         
-        print("trained with lr="+str(self.lr)+" which achieved (train+val):")
+        print("trained with lr="+str(self.clf.lr)+" which achieved (train+val):")
         pred = self.clf.predict(emb)
         y_pred = (np.array(pred) >= self.theta).astype(int)
         recall = recall_score(y, y_pred, average='weighted')
