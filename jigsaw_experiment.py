@@ -81,7 +81,7 @@ def run_clf_experiments(exp_config: dict):
             n_groups = len(jigsaw_dataset.sel_groups)
 
             sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups} for title in jigsaw_dataset.labels}
-            for sample in jigsaw_dataset.sel_data:
+            for sample in jigsaw_dataset.data:
                 for i in range(sample['label'].shape[0]):
                     if sample['label'][i] == 1:
                         sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1

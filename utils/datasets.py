@@ -501,6 +501,7 @@ class JigsawDataset(BiasDataset):
         print("successfully loaded dataset from the filesystem")
         print("this took ", end_time-start_time, "seconds")
         
+        self.n_folds = n_folds
         self.labels = sel_labels
         self.groups_by_bias_types = {bt: groups_by_bias_types[bt] for bt in bias_types}
         self.bias_types = self.groups_by_bias_types.keys()
@@ -509,6 +510,8 @@ class JigsawDataset(BiasDataset):
             print("load transformed dataset from checkpoint")
             with open(dataset_checkpoint, 'rb') as handle:
                 self.data = pickle.load(handle)
+                n_per_fold = math.ceil(len(self.data)/self.n_folds)
+                self.data_folds = [self.data[i:i+n_per_fold] for i in range(0, len(self.data), n_per_fold)]
             del dataset
         else:
             start_time = time.time()
@@ -523,12 +526,10 @@ class JigsawDataset(BiasDataset):
         self.sel_bias_type = None
         self.sel_groups = []
         self.sel_data = None
-        self.n_folds = n_folds
         
         self.individual_biases = []
         self.bias_score = []
         
-        self.data_folds = None
         self.train_data = []
         self.eval_data = []
         
@@ -544,45 +545,36 @@ class JigsawDataset(BiasDataset):
         self.sel_bias_type = bias_type
         self.sel_groups = self.groups_by_bias_types[bias_type]
         
-        self.sel_data = []
-        for sample in self.data:
-            if self.sel_bias_type in sample['bias_type']:
-                self.sel_data.append(sample)
-            
-        idx = 0
-        for sample in self.sel_data:
-            sample['id'] = idx
-            idx += 1
-                
-        n_per_fold = math.ceil(len(self.sel_data)/self.n_folds)
-        self.data_folds = [self.sel_data[i:i+n_per_fold] for i in range(0, len(self.sel_data), n_per_fold)]
+        return True
+    
+    def set_data_split(self, fold_id):
+        assert fold_id >= 0 and fold_id < self.n_folds
         
-        print("sample distributions per data fold: ")
-        for j, fold in enumerate(self.data_folds):
+        #self.eval_data = self.data_folds[fold_id]
+        self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
+        
+        # filter eval data for current bias attribute
+        for sample in self.data_folds[fold_id]:
+            if self.sel_bias_type in sample['bias_type']:
+                self.eval_data.append(sample)
+        
+        for (desc, fold) in [('train', self.train_data),('eval', self.eval_data)]:
             sample_dist = {title: {group: 0 for group in self.sel_groups} for title in self.labels}
+            print("got ", len(fold), " samples for ", desc)
             for sample in fold:
                 for i in range(sample['label'].shape[0]):
                     if sample['label'][i] == 1:
                         sample_dist[self.labels[i]][self.sel_groups[sample['group']]] += 1
 
             df = pd.DataFrame(sample_dist)
-            print("class/group distribution for fold", j)
+            print("class/group distributions of", desc, "data:")
             with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
                 print(df)
             print()
-            
-        y = np.asarray([sample['label'] for sample in self.sel_data])
-        print("y shape:", y.shape)
         
-        return True
-    
-    def set_data_split(self, fold_id):
-        assert fold_id >= 0 and fold_id < self.n_folds
+        print("got ", len(self.data_folds[fold_id]), " samples in the eval split")
+        print(len(self.eval_data), " of these have the selected bias type and will be used for evaluation")
         
-        self.eval_data = self.data_folds[fold_id]
-        self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
-        
-        #print("got ", len(self.eval_data), "eval samples")
         #print("got ", len(self.train_data), "train samples")
         #print("max train id is: ", np.max([sample['id'] for sample in self.train_data]))
         
@@ -622,7 +614,6 @@ class JigsawDataset(BiasDataset):
         
         if np.sum(label) == 0:
             return None
-#            label[-1] = 1 # default class for non-harmful content
         
         # TODO: can we get actual counterfactuals?
         new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 
@@ -636,21 +627,49 @@ class JigsawDataset(BiasDataset):
             new_sample = self.transform_sample(sample)
             if new_sample is not None:
                 self.data.append(new_sample)
-        for sample in data['test_private_leaderboard']:
-            new_sample = self.transform_sample(sample)
-            if new_sample is not None:
-                self.data.append(new_sample)
-        for sample in data['test_public_leaderboard']:
-            new_sample = self.transform_sample(sample)
-            if new_sample is not None:
-                self.data.append(new_sample)
+        #for sample in data['test_private_leaderboard']:
+        #    new_sample = self.transform_sample(sample)
+        #    if new_sample is not None:
+        #        self.data.append(new_sample)
+        #for sample in data['test_public_leaderboard']:
+        #    new_sample = self.transform_sample(sample)
+        #    if new_sample is not None:
+        #        self.data.append(new_sample)
         self.data = shuffle(self.data, random_state=0)
+        
+        idx = 0
+        for sample in self.data:
+            sample['id'] = idx
+            idx += 1
+                
+        n_per_fold = math.ceil(len(self.data)/self.n_folds)
+        self.data_folds = [self.data[i:i+n_per_fold] for i in range(0, len(self.data), n_per_fold)]
+        
+        print("sample distributions per data fold: ")
+        for j, fold in enumerate(self.data_folds):
+            sample_dist = {title: {group: 0 for bt in self.bias_types for group in self.groups_by_bias_types[bt]} for title in self.labels}
+            for sample in fold:
+                cur_group = 'other'
+                for bt in self.bias_types:
+                    if sample['bias_type'] == bt:
+                        cur_group = self.groups_by_bias_types[bt][sample['group']]
+                if cur_group == 'other':
+                    continue
+                for i in range(sample['label'].shape[0]):
+                    if sample['label'][i] == 1:
+                        sample_dist[self.labels[i]][cur_group] += 1
+
+            df = pd.DataFrame(sample_dist)
+            print("class/group distribution for fold", j)
+            with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
+                print(df)
+            print()
             
     def get_neutral_samples_by_masking(self, attributes): 
         neutral_sent = []
         labels = []
         groups = []
-        for sample in self.sel_data:
+        for sample in self.data:
             bio = sample['counterfactual'].lower()
             if sample['group'] < len(attributes):
                 for attr in attributes[sample['group']]:
@@ -659,7 +678,7 @@ class JigsawDataset(BiasDataset):
             labels.append(sample['label'])
             groups.append(sample['group'])
             
-        #print("used ", len(self.sel_data), "selected samples to create ", len(neutral_sent), " neutral samples")
+        #print("used ", len(self.data), "selected samples to create ", len(neutral_sent), " neutral samples")
             
         return neutral_sent, labels, groups
         
