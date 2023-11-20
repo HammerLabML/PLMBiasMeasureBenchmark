@@ -82,8 +82,11 @@ def run_mlm_experiments(exp_config: dict):
             print("skip experiment", i, "which is part of the last checkpoint")
             continue
             
+        print()
+        print("############################################################################################")
         print("run experiment", i, "of", len(exp_parameters), "with parameters:")
         print(params)
+        print("############################################################################################")
 
         #if 'mlm' in params:
         # MLM experiment with CrowS-Pairs

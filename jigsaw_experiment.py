@@ -72,8 +72,11 @@ def run_clf_experiments(exp_config: dict):
             print("skip experiment", i, "which is part of the last checkpoint")
             continue
             
+        print()
+        print("############################################################################################")
         print("run experiment", i, "of", len(exp_parameters), "with parameters:")
         print(params)
+        print("############################################################################################")
         
         # select bias_type from dataset
         if params['bias_type'] is not jigsaw_dataset.sel_bias_type:
@@ -184,7 +187,6 @@ def run_clf_experiments(exp_config: dict):
                 weights = [class_gender_weights[cur_group][lbl]*100 for lbl in cur_labels]
                 sample_weights.append(np.max(weights))
             
-            print("y shape befor fit", y.shape)
             # fit the whole pipeline
             if params['group_weights']:
                 recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)

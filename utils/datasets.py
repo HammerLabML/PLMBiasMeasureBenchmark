@@ -704,6 +704,6 @@ class JigsawDataset(BiasDataset):
         
         # AUC
         self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
-        print("subgroup AUC:", self.subgroup_auc)
-        print("BPSN:", self.bpsn)
-        print("BNSP:", self.bnsp)
+        #print("subgroup AUC:", self.subgroup_auc)
+        #print("BPSN:", self.bpsn)
+        #print("BNSP:", self.bnsp)

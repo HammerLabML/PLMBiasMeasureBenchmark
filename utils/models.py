@@ -177,7 +177,7 @@ class CustomModel():
         self.optimizer = optimizer[self.param_optimizer](params=self.model.parameters(), lr=self.lr)
         
 
-    def fit(self, X, y, epochs=2, weights=None):
+    def fit(self, X, y, epochs=2, weights=None, verbose=False):
         if self.optimizer is None:
             print("optimizer is not set, call set_lr() with a valid learning rate or provide a valid learning rate among the parameters during initialization")
             return
@@ -189,7 +189,10 @@ class CustomModel():
         
         self.model.train()
         for epoch in range(epochs):
-            loop = tqdm(loader, leave=True)
+            if verbose:
+                loop = tqdm(loader, leave=True)
+            else:
+                loop = loader
             for batch in loop:
                 self.optimizer.zero_grad()
                 
@@ -208,9 +211,9 @@ class CustomModel():
                 loss.backward()
 
                 self.optimizer.step()
-
-                loop.set_description(f'Epoch {epoch}')
-                loop.set_postfix(loss=loss.item())
+                if verbose:
+                    loop.set_description(f'Epoch {epoch}')
+                    loop.set_postfix(loss=loss.item())
                 
                 loss = loss.detach().item()
 
@@ -229,12 +232,16 @@ class CustomModel():
         self.model.eval()
         torch.cuda.empty_cache()     
     
-    def predict(self, X):
+    def predict(self, X, verbose=False):
         dataset = TensorDataset(torch.tensor(X))
         loader = DataLoader(dataset, batch_size=self.batch_size)
         predictions = []
         
-        loop = tqdm(loader, leave=True)
+        if verbose:
+            loop = tqdm(loader, leave=True)
+        else:
+            loop = loader
+            
         for batch in loop:
             if torch.cuda.is_available():
                 X = batch[0].to('cuda')
@@ -427,11 +434,15 @@ class MLMPipeline():
         outputs = np.vstack(outputs)
         return outputs
     
-    def predict_head(self, X: torch.Tensor, return_log_prob=True):
+    def predict_head(self, X: torch.Tensor, return_log_prob=True, verbose=False):
         dataset = TensorDataset(X)
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
 
-        loop = tqdm(loader, leave=True)
+        if verbose:
+            loop = tqdm(loader, leave=True)
+        else:
+            loop = loader
+            
         outputs = []
         for batch in loop:
             if torch.cuda.is_available():
@@ -449,10 +460,14 @@ class MLMPipeline():
         torch.cuda.empty_cache()
         return outputs
         
-    def predict_token_probs_head(self, dataset: MLMBiasDataset):
+    def predict_token_probs_head(self, dataset: MLMBiasDataset, verbose=False):
         loader = torch.utils.data.DataLoader(dataset, batch_size=self.batch_size)
 
-        #loop = tqdm(loader, leave=True)
+        if verbose:
+            loop = tqdm(loader, leave=True)
+        else:
+            loop = loader
+            
         sum_log_probs = 0
         for batch in loader:
             token_ids = batch['label']
@@ -642,6 +657,7 @@ class DebiasPipeline():
             best_lr = self.learning_rates[0]
             print("optimize learning rate...")
             for lr in self.learning_rates:
+                print("lr=",lr)
                 self.clf.set_lr(lr)
                 self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
                 pred = self.clf.predict(emb_val)
@@ -651,17 +667,18 @@ class DebiasPipeline():
                 if score > best_score and np.min(class_wise_recall) > 0.01:
                     best_score = score
                     best_lr = lr
+                print()
             
             if best_lr != self.learning_rates[-1]:
                 self.clf.set_lr(best_lr)
                 self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
-            print("trained with lr="+str(best_lr)+" which achieved (train+val):")
             
         else:
             if type(self.learning_rates) == list:
                 self.clf.set_lr(self.learning_rates[0])
             self.clf.fit(emb, y, epochs=epochs)
         
+        print("trained with lr="+str(self.lr)+" which achieved (train+val):")
         pred = self.clf.predict(emb)
         y_pred = (np.array(pred) >= self.theta).astype(int)
         recall = recall_score(y, y_pred, average='weighted')
@@ -674,6 +691,8 @@ class DebiasPipeline():
 
         print("class-wise recall:")
         print(class_recall)
+        print()
+        print()
         
         return recall, precision, f1, class_recall
     
