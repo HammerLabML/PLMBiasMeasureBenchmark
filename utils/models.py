@@ -667,7 +667,6 @@ class DebiasPipeline():
                 if score > best_score and np.min(class_wise_recall) > 0.01:
                     best_score = score
                     best_lr = lr
-                print()
             
             if best_lr != self.learning_rates[-1]:
                 self.clf.set_lr(best_lr)
