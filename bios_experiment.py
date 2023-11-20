@@ -92,9 +92,12 @@ def run_clf_experiments(exp_config: dict):
         if i < len(results):
             print("skip experiment", i, "which is part of the last checkpoint")
             continue
-            
+        
+        print()
+        print("############################################################################################")
         print("run experiment", i, "of", len(exp_parameters), "with parameters:")
         print(params)
+        print("############################################################################################")
 
         model_name = params['embedder']
         if not model_name in batch_size_lookup.keys():
@@ -132,9 +135,6 @@ def run_clf_experiments(exp_config: dict):
         targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
         assert len(set(groups_cf)) == n_groups
         cf_emb_all = lm.embed(targets_cf)
-        #targets, labels, group_label = bios_dataset.get_neutral_samples_by_masking(attributes)
-        #assert len(set(group_label)) == n_groups
-        #target_emb_all = lm.embed(targets)
             
         # TODO ROC AUC bias
         for fold_id in range(params['n_fold']):
@@ -246,7 +246,7 @@ def run_clf_experiments(exp_config: dict):
                         class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
                     else:
-                        individual_biases = [cur_score.individual_biasf(emb_eval_cf[i]) - cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
                         cur_result[score+'_individual'].append(individual_biases)
                         class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)

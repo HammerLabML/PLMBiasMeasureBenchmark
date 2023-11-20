@@ -114,10 +114,10 @@ def run_clf_experiments(exp_config: dict):
         else:
             batch_size = batch_size_lookup[model_name]
         
-        cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': []} # cosine scores on training data
+        cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'extrinsic_classwise': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': []} # cosine scores on training data
         #cur_result_test = {'id': i, 'extrinsic': [], 'extrinsic_individual': []} # cosine scores on test data
         for score in cosine_scores:
-            cur_result.update({score: [], score+'_individual': []})
+            cur_result.update({score: [], score+'_individual': [], score+'_classwise': []})
             #cur_result_test.update({score: [], score+'_individual': []})
             
         # attributes are independent from data/ fold
@@ -137,6 +137,11 @@ def run_clf_experiments(exp_config: dict):
         
         #print("embed ", len(targets), "neutral target samples")
         target_emb_all = lm.embed(targets)
+        
+        #print("embed all counterfactual bios...")
+        #targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
+        #assert len(set(groups_cf)) == n_groups
+        #cf_emb_all = lm.embed(targets_cf)
             
         # TODO ROC AUC bias
         for fold_id in range(params['n_fold']):
@@ -207,7 +212,8 @@ def run_clf_experiments(exp_config: dict):
             #print(np.sum(y_eval, axis=0))
             #print(jigsaw_dataset.labels)
             jigsaw_dataset.group_bias(pipeline.predict, emb_eval)
-            cur_result['extrinsic_individual'].append(jigsaw_dataset.bias_score) # class-wise GAPs
+            #cur_result['extrinsic_individual'].append(jigsaw_dataset.individual_biases)
+            cur_result['extrinsic_classwise'].append(jigsaw_dataset.bias_score) # class-wise GAPs
             cur_result['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
             cur_result['subgroup_AUC'].append(jigsaw_dataset.subgroup_auc)
             cur_result['BPSN'].append(jigsaw_dataset.bpsn)
@@ -248,11 +254,16 @@ def run_clf_experiments(exp_config: dict):
 
                 if not score == 'gWEAT':
                     if score == 'SAME' and n_groups == 2:
+                        print("use signed SAME score for binary bias eval")
+                        #individual_biases = [cur_score.signed_individual_bias(emb_eval_cf[i]) - cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        #cur_result[score+'_individual'].append(individual_biases)
                         class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                        cur_result[score+'_individual'].append(class_biases)
+                        cur_result[score+'_classwise'].append(class_biases)
                     else:
+                        #individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        #cur_result[score+'_individual'].append(individual_biases)
                         class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
-                        cur_result[score+'_individual'].append(class_biases)
+                        cur_result[score+'_classwise'].append(class_biases)
 
                 if score in ['WEAT', 'gWEAT']:
                     bias = cur_score.group_bias(target_emb_per_group)
