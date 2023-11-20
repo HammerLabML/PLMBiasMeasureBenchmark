@@ -458,7 +458,7 @@ class BiosDataset(BiasDataset):
             y_pred_i = y_pred[i,:]
             y_pred_cf_i = y_pred_cf[i,:]
             y_true_i = y_true[i,:]
-            bias = np.sum(np.abs(y_pred_i[y_true_i==1]-y_pred_cf_i[y_true_i==1]))
+            bias = np.sum(np.abs(y_pred_cf_i[y_true_i==1]-y_pred_i[y_true_i==1]))
             self.individual_biases.append(bias)
             
         # percentage of cases where the counterfactual influences a positive prediction (for binary predictions)
