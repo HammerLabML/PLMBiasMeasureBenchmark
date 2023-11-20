@@ -134,7 +134,10 @@ def run_mlm_experiments(exp_config: dict):
                 cur_result.update({score: math.nan})
                 continue
 
-            cur_score = cosine_scores[score]()
+            if score == 'DirectBias':
+                cur_score = cosine_scores[score](k=n_groups-1) # have the same dimension of bias space as SAME
+            else:
+                cur_score = cosine_scores[score]()
             cur_score.define_bias_space(attr_emb)
 
             if not score == 'gWEAT':

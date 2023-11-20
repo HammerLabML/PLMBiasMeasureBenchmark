@@ -238,7 +238,10 @@ def run_clf_experiments(exp_config: dict):
                     cur_result[score].append(math.nan)
                     continue
 
-                cur_score = cosine_scores[score]()
+                if score == 'DirectBias':
+                    cur_score = cosine_scores[score](k=n_groups-1) # have the same dimension of bias space as SAME
+                else:
+                    cur_score = cosine_scores[score]()
                 cur_score.define_bias_space(np.asarray(attr_emb))#np.asarray(emb_per_group))
 
                 if not score == 'gWEAT':

@@ -232,7 +232,10 @@ def run_clf_experiments(exp_config: dict):
                     cur_result[score].append(math.nan)
                     continue
 
-                cur_score = cosine_scores[score]()
+                if score == 'DirectBias':
+                    cur_score = cosine_scores[score](k=n_groups-1) # have the same dimension of bias space as SAME
+                else:
+                    cur_score = cosine_scores[score]()
                 cur_score.define_bias_space(np.asarray(attr_emb))
 
                 if not score == 'gWEAT':
@@ -243,7 +246,7 @@ def run_clf_experiments(exp_config: dict):
                         class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
                     else:
-                        individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        individual_biases = [cur_score.individual_biasf(emb_eval_cf[i]) - cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
                         cur_result[score+'_individual'].append(individual_biases)
                         class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
