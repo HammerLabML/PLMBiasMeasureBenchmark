@@ -556,6 +556,7 @@ class JigsawDataset(BiasDataset):
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
         
         # filter eval data for current bias attribute
+        self.eval_data = []
         for sample in self.data_folds[fold_id]:
             if self.sel_bias_type == sample['bias_type'] and sample['group'] < len(self.sel_groups)-1:
                 self.eval_data.append(sample)
