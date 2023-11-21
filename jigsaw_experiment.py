@@ -81,12 +81,12 @@ def run_clf_experiments(exp_config: dict):
         # select bias_type from dataset
         if params['bias_type'] is not jigsaw_dataset.sel_bias_type:
             jigsaw_dataset.sel_attributes(params['bias_type'])
-            n_groups = len(jigsaw_dataset.sel_groups)
+            n_groups = len(jigsaw_dataset.sel_groups)-1
 
-            sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups} for title in jigsaw_dataset.labels}
+            sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups[:-1]} for title in jigsaw_dataset.labels}
             for sample in jigsaw_dataset.data:
                 for i in range(sample['label'].shape[0]):
-                    if sample['label'][i] == 1:
+                    if sample['label'][i] == 1 and sample['group'] < len(jigsaw_dataset.sel_groups)-1:
                         sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1
 
             df = pd.DataFrame(sample_dist)
@@ -95,8 +95,8 @@ def run_clf_experiments(exp_config: dict):
             #    print(df)
             #print()
 
-            samples_per_group = [np.sum(df.loc[group]) for group in jigsaw_dataset.sel_groups]
-            classes_by_majority_group = {group: [] for group in jigsaw_dataset.sel_groups}
+            samples_per_group = [np.sum(df.loc[group]) for group in jigsaw_dataset.sel_groups[:-1]]
+            classes_by_majority_group = {group: [] for group in jigsaw_dataset.sel_groups[:-1]}
             for cur_class, dist in sample_dist.items():
                 max_group_id = np.argmax(np.divide(list(dist.values()), samples_per_group))
                 group = jigsaw_dataset.sel_groups[max_group_id]
@@ -127,23 +127,24 @@ def run_clf_experiments(exp_config: dict):
         attributes = [terms_by_groups[group] for group in groups_by_bias_types[params['bias_type']]]
         attr_emb = [lm.embed(attr) for attr in attributes]
         
-        #print("embed all raw bios...")
-        #bios_emb_all = lm.embed([sample['text'] for sample in jigsaw_dataset.sel_data])
+        print("embed all raw bios...")
+        target_emb_all = lm.embed([sample['text'] for sample in jigsaw_dataset.data])
+        labels = [sample['label'] for sample in jigsaw_dataset.data]
+        group_label = [sample['group'] for sample in jigsaw_dataset.data]
         
-        print("embed samples...")
+        #print("embed samples...")
         #print("embed all neutralized samples...")
-        targets, labels, group_label = jigsaw_dataset.get_neutral_samples_by_masking(attributes)
-        assert len(set(group_label)) == n_groups
+        #targets, labels, group_label = jigsaw_dataset.get_neutral_samples_by_masking(attributes)
+        #assert len(set(group_label)) == n_groups, "mismatch of group label / n_groups: "+str(len(set(group_label)))+" / "+str(n_groups)
         
         #print("embed ", len(targets), "neutral target samples")
-        target_emb_all = lm.embed(targets)
+        #target_emb_all = lm.embed(targets)
         
         #print("embed all counterfactual bios...")
         #targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
         #assert len(set(groups_cf)) == n_groups
         #cf_emb_all = lm.embed(targets_cf)
             
-        # TODO ROC AUC bias
         for fold_id in range(params['n_fold']):
             if params['head'] == 'SimpleCLFHead':
                 head = SimpleCLFHead(input_size=lm.model.config.hidden_size, output_size=n_classes)
@@ -168,8 +169,8 @@ def run_clf_experiments(exp_config: dict):
             
             #print("train data stats for fold ", fold_id)
             #print(df)
-            class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in jigsaw_dataset.labels} for g in jigsaw_dataset.sel_groups}
-            class_weights = [(len(jigsaw_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl]) for lbl in jigsaw_dataset.labels]
+            #class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in jigsaw_dataset.labels} for g in jigsaw_dataset.sel_groups}
+            class_weights = [2*((len(jigsaw_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl])) for lbl in jigsaw_dataset.labels]
             print("class weights: ")
             print(jigsaw_dataset.labels)
             print(class_weights)
@@ -185,18 +186,24 @@ def run_clf_experiments(exp_config: dict):
             assert len(groups) == y.shape[0]
             
             # get sample weights
-            sample_weights = []
-            for sample in jigsaw_dataset.train_data:
-                cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
-                cur_group = jigsaw_dataset.sel_groups[sample['group']]
-                weights = [class_gender_weights[cur_group][lbl]*100 for lbl in cur_labels]
-                sample_weights.append(np.max(weights))
+            #print(class_gender_weights)
+            #sample_weights = []
+            #for sample in jigsaw_dataset.train_data:
+            #    cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
+            #    cur_group = jigsaw_dataset.sel_groups[sample['group']]
+            #    weights = [class_gender_weights[cur_group][lbl] for lbl in cur_labels]
+            #    try:
+            #        sample_weights.append(np.max(weights))
+            #    except ValueError:
+            #        print(cur_labels)
+            #        print(cur_group)
+            #        print(weights)
             
             # fit the whole pipeline
-            if params['group_weights']:
-                recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
-            else:
-                recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
+            #if params['group_weights']:
+            #    recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
+            #else:
+            recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
             
             cur_result['recall'] = recall
             cur_result['precision'] = precision

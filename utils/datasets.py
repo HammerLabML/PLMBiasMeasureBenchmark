@@ -503,7 +503,9 @@ class JigsawDataset(BiasDataset):
         
         self.n_folds = n_folds
         self.labels = sel_labels
-        self.groups_by_bias_types = {bt: groups_by_bias_types[bt] for bt in bias_types}
+        self.groups_by_bias_types = {bt: groups_by_bias_types[bt]+['other'] for bt in bias_types}
+        self.groups_by_bias_types.update({'none': ['none']})
+        print(self.groups_by_bias_types)
         self.bias_types = self.groups_by_bias_types.keys()
         
         if os.path.isfile(dataset_checkpoint):
@@ -555,7 +557,7 @@ class JigsawDataset(BiasDataset):
         
         # filter eval data for current bias attribute
         for sample in self.data_folds[fold_id]:
-            if self.sel_bias_type in sample['bias_type']:
+            if self.sel_bias_type == sample['bias_type'] and sample['group'] < len(self.sel_groups)-1:
                 self.eval_data.append(sample)
         
         for (desc, fold) in [('train', self.train_data),('eval', self.eval_data)]:
@@ -607,13 +609,18 @@ class JigsawDataset(BiasDataset):
             #    print(sample)
             
         if len(found_groups) == 0:
+            if len(bias_types) == 0:
+                bias_types = ['none']
+                found_groups = [0]
+            else:
+                self.groups_by_bias_types[bias_types[0]].index('other')
             return None
         
         if len(found_groups) > 1:
             return None
         
-        if np.sum(label) == 0:
-            return None
+        #if np.sum(label) == 0:
+        #    return None
         
         # TODO: can we get actual counterfactuals?
         new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 
@@ -627,14 +634,14 @@ class JigsawDataset(BiasDataset):
             new_sample = self.transform_sample(sample)
             if new_sample is not None:
                 self.data.append(new_sample)
-        #for sample in data['test_private_leaderboard']:
-        #    new_sample = self.transform_sample(sample)
-        #    if new_sample is not None:
-        #        self.data.append(new_sample)
-        #for sample in data['test_public_leaderboard']:
-        #    new_sample = self.transform_sample(sample)
-        #    if new_sample is not None:
-        #        self.data.append(new_sample)
+        for sample in data['test_private_leaderboard']:
+            new_sample = self.transform_sample(sample)
+            if new_sample is not None:
+                self.data.append(new_sample)
+        for sample in data['test_public_leaderboard']:
+            new_sample = self.transform_sample(sample)
+            if new_sample is not None:
+                self.data.append(new_sample)
         self.data = shuffle(self.data, random_state=0)
         
         idx = 0
@@ -653,8 +660,8 @@ class JigsawDataset(BiasDataset):
                 for bt in self.bias_types:
                     if sample['bias_type'] == bt:
                         cur_group = self.groups_by_bias_types[bt][sample['group']]
-                if cur_group == 'other':
-                    continue
+                #if cur_group == 'other':
+                #    continue
                 for i in range(sample['label'].shape[0]):
                     if sample['label'][i] == 1:
                         sample_dist[self.labels[i]][cur_group] += 1
