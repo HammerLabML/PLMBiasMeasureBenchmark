@@ -45,18 +45,17 @@ def run_clf_experiments(exp_config: dict):
                 for head in exp_config['clf_heads']:
                     for optim in exp_config['clf_optimizer']:
                         for crit in exp_config['clf_criterion']:
-                            for lr in exp_config['lr']:
-                                # one without debias anyway
-                                params = {key: exp_config[key] for key in ['bias_scores', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
-                                params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
-                                               'optimizer': optim, 'criterion': crit, 'lr': lr, 'debias': False})
-                                exp_parameters.append(params)
-                                if exp_config['debias']:
-                                    for k in exp_config['debias_k']:
-                                        params = {key: exp_config[key] for key in ['bias_scores', 'debias', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
-                                        params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
-                                                       'optimizer': optim, 'criterion': crit, 'lr': lr, 'debias_k': k})
-                                        exp_parameters.append(params)        
+                            # one without debias anyway
+                            params = {key: exp_config[key] for key in ['bias_scores', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
+                            params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
+                                           'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias': False})
+                            exp_parameters.append(params)
+                            if exp_config['debias']:
+                                for k in exp_config['debias_k']:
+                                    params = {key: exp_config[key] for key in ['bias_scores', 'debias', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
+                                    params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
+                                                   'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias_k': k})
+                                    exp_parameters.append(params)        
                             
     # load the datasets
     print("load dataset...")
@@ -120,10 +119,19 @@ def run_clf_experiments(exp_config: dict):
             cur_result.update({score: [], score+'_individual': [], score+'_classwise': []})
             #cur_result_test.update({score: [], score+'_individual': []})
             
+        print("load model ", model_name)
+        is_hugginface_model = True
+        if 'fasttext' in model_name or 'word2vec' in model_name or 'glove' in model_name or 'conceptnet' in model_name:
+            is_hugginface_model = False
+            
+        if is_hugginface_model:
+            lm = BertHuggingface(model_name=model_name, batch_size=batch_size, num_labels=2)
+            emb_size = lm.model.config.hidden_size
+        else:
+            lm = WordVectorWrapper(model_name)
+            emb_size = lm.emb_size
+            
         # attributes are independent from data/ fold
-        lm = BertHuggingface(model_name=model_name, batch_size=batch_size, num_labels=2)
-        emb_size = lm.model.config.hidden_size
-        
         attributes = [terms_by_groups[group] for group in groups_by_bias_types[params['bias_type']]]
         attr_emb = [lm.embed(attr) for attr in attributes]
         
@@ -170,7 +178,7 @@ def run_clf_experiments(exp_config: dict):
             #print("train data stats for fold ", fold_id)
             #print(df)
             #class_gender_weights = {g: {lbl: mean_n_samples/df.loc[g,lbl] for lbl in jigsaw_dataset.labels} for g in jigsaw_dataset.sel_groups}
-            class_weights = [2*((len(jigsaw_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl])) for lbl in jigsaw_dataset.labels]
+            class_weights = [((len(jigsaw_dataset.train_data)-np.sum(df.loc[:,lbl]))/np.sum(df.loc[:,lbl])) for lbl in jigsaw_dataset.labels]
             print("class weights: ")
             print(jigsaw_dataset.labels)
             print(class_weights)

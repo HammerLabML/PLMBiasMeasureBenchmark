@@ -160,6 +160,7 @@ class CustomModel():
         if torch.cuda.is_available():
             self.model = self.model.to('cuda')
         
+        self.class_weights = class_weights
         if class_weights is not None:
             print("use class weights")
             class_weights = torch.tensor(class_weights)
@@ -664,7 +665,7 @@ class DebiasPipeline():
                 y_pred = (np.array(pred) >= self.theta).astype(int)
                 score = self.validation_score(y_val, y_pred, average='weighted')
                 class_wise_recall = recall_score(y_val, y_pred, average=None)
-                if score > best_score and np.min(class_wise_recall) > 0.01:
+                if score > best_score and np.min(class_wise_recall) > 0.01 and np.max(class_wise_recall) < 1.0:
                     best_score = score
                     best_lr = lr
             
