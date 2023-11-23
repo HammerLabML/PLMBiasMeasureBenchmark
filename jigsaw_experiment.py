@@ -155,9 +155,9 @@ def run_clf_experiments(exp_config: dict):
             
         for fold_id in range(params['n_fold']):
             if params['head'] == 'SimpleCLFHead':
-                head = SimpleCLFHead(input_size=lm.model.config.hidden_size, output_size=n_classes)
+                head = SimpleCLFHead(input_size=emb_size, output_size=n_classes)
             elif params['head'] == 'CLFHead':
-                head = CLFHead(input_size=lm.model.config.hidden_size, output_size=n_classes, hidden_size=lm.model.config.hidden_size)
+                head = CLFHead(input_size=emb_size, output_size=n_classes, hidden_size=emb_size)
             else:
                 print("invalid clf head: ", params['head'])
                 break
