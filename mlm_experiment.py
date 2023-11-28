@@ -30,23 +30,18 @@ from unmasking_bias import PLLBias
 
 from utils import CLFHead, SimpleCLFHead, MLMPipeline, CustomModel, CrowSPairsDataset, JigsawDataset, BiosDataset
 
-
 with open('data/protected_groups.json', 'r') as f:
     pg_config = json.load(f)
-    
-with open('configs/mlm_exp.json', 'r') as f:
-    exp_config = json.load(f)
-    
-with open(exp_config['batch_size_lookup'], 'r') as f:
-    batch_size_lookup = json.load(f)
     
 groups_by_bias_types = pg_config['groups_by_bias_types']
 terms_by_groups = pg_config['terms_by_groups']
 
-cosine_scores = {'SAME': SAME, 'WEAT': WEAT, 'gWEAT': GeneralizedWEAT, 'DirectBias': DirectBias, 'MAC': MAC}
-
+cosine_scores = {'SAME': SAME, 'WEAT': WEAT, 'gWEAT': GeneralizedWEAT, 'DirectBias': DirectBias, 'MAC': MAC}    
 
 def run_mlm_experiments(exp_config: dict):
+    with open(exp_config['batch_size_lookup'], 'r') as f:
+        batch_size_lookup = json.load(f)
+        
     save_file = exp_config['save_file']
     if os.path.isfile(save_file):
         print("load previous results...")
@@ -178,5 +173,33 @@ def run_mlm_experiments(exp_config: dict):
         print("save results at ", save_file)
         pickle.dump({'params': exp_parameters, 'results': results}, handle)
 
-run_mlm_experiments(exp_config)
-print('done')
+
+
+
+def main(argv):
+    config_path = ''
+    min_iter = 0
+    max_iter = -1
+    try:
+        opts, args = getopt.getopt(argv, "hc:", ["config="])
+    except getopt.GetoptError:
+        print('bios_experiment.py -c <config>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('bios_experiment.py -c <config>')
+            sys.exit()
+        elif opt in ("-c", "--config"):
+            config_path = arg
+
+    print('use config:' + config_path)
+
+    with open(config_path, 'r') as f:
+        exp_config = json.load(f)
+
+    run_mlm_experiments(exp_config)
+    print('done')
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
