@@ -1,13 +1,16 @@
-import numpy as np
-import math
 import os
-import pandas as pd
-from operator import itemgetter
-import pickle
-from tqdm import tqdm
-import scipy
+import sys
+import getopt
+
+import math
 import random
+import scipy
+import numpy as np
+import pandas as pd
+
+import pickle
 import json
+from tqdm import tqdm
 
 import difflib
 import string
@@ -19,11 +22,10 @@ import seaborn as sns
 
 import torch
 from torch import Tensor
-import datasets
+from torch.utils.data import DataLoader, TensorDataset
+
 from datasets import load_dataset
 from embedding import BertHuggingfaceMLM
-
-from torch.utils.data import DataLoader, TensorDataset
 
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, RIPA, MAC, normalize, cossim, EmbSetList, EmbSet, GeometricBias
 from unmasking_bias import PLLBias
