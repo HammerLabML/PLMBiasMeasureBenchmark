@@ -69,7 +69,6 @@ def run_mlm_experiments(exp_config: dict):
                         exp_parameters.append(params)
                                    
                 exp_parameters.append(params)
-    print(exp_parameters)
                             
     # load the datasets
     csp_dataset = CrowSPairsDataset(groups_by_bias_types, terms_by_groups)
