@@ -187,7 +187,7 @@ def run_clf_experiments(exp_config: dict):
             if params['clf_debias'] == 'add_cf':
                 emb = np.asarray([target_emb_all[i] for i in train_ids]+[cf_emb_all[i] for i in train_ids])
                 groups = [sample['group'] for sample in bios_dataset.train_data]+[groups_cf[i] for i in train_ids]
-                y = np.asarray([sample['label'] for sample in bios_dataset.train_data]+[label_cf[i] for i in train_ids])
+                y = np.asarray([sample['label'] for sample in bios_dataset.train_data]+[labels_cf[i] for i in train_ids])
             else:
                 if params['clf_debias'] in ['no', 'weights', 'resample', 'resample_noise']:
                     emb = np.asarray([target_emb_all[i] for i in train_ids])
