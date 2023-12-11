@@ -179,7 +179,7 @@ def run_clf_experiments(exp_config: dict):
             # get samples
             train_ids = [sample['id'] for sample in bios_dataset.train_data]
             
-            clf_debias_methods = ['no', 'weights', 'resample', 'add_cf', 'neutral', 'weights+neutral', 'resample+neutral']
+            clf_debias_methods = ['no', 'weights', 'resample', 'add_cf', 'neutral', 'weights+neutral', 'resample+neutral', 'resample_noise']
             if params['clf_debias'] not in clf_debias_methods:
                 print("clf debias method unknown. select one of these: ")
                 print(clf_debias_methods)
