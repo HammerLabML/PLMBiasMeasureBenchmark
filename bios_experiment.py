@@ -10,7 +10,7 @@ import getopt
 
 from embedding import BertHuggingface
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, MAC, normalize, cossim, EmbSetList, EmbSet, GeometricBias
-from utils import CLFHead, SimpleCLFHead, CustomModel, JigsawDataset, BiosDataset, DebiasPipeline, upsample_defining_embeddings, WordVectorWrapper
+from utils import CLFHead, SimpleCLFHead, CustomModel, JigsawDataset, BiosDataset, DebiasPipeline, upsample_defining_embeddings, WordVectorWrapper, resample
 
 with open('data/protected_groups.json', 'r') as f:
     pg_config = json.load(f)
@@ -113,10 +113,8 @@ def run_clf_experiments(exp_config: dict):
         
         cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'extrinsic_classwise': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': [], 
                       'extrinsic_classwise_neutral': [], 'subgroup_AUC_neutral': [], 'BPSN_neutral': [], 'BNSP_neutral': []} # cosine scores on training data
-        #cur_result_test = {'id': i, 'extrinsic': [], 'extrinsic_individual': []} # cosine scores on test data
         for score in cosine_scores:
             cur_result.update({score: [], score+'_cf': [], score+'_neutral': [], score+'_individual': [], score+'_classwise': [], score+'_classwise_neutral': []})
-            #cur_result_test.update({score: [], score+'_individual': []})
             
         print("load model ", model_name)
         is_hugginface_model = True
@@ -191,7 +189,7 @@ def run_clf_experiments(exp_config: dict):
                 groups = [sample['group'] for sample in bios_dataset.train_data]+[groups_cf[i] for i in train_ids]
                 y = np.asarray([sample['label'] for sample in bios_dataset.train_data]+[label_cf[i] for i in train_ids])
             else:
-                if params['clf_debias'] in ['no', 'weights', 'resample']:
+                if params['clf_debias'] in ['no', 'weights', 'resample', 'resample_noise']:
                     emb = np.asarray([target_emb_all[i] for i in train_ids])
                 elif params['clf_debias'] in ['neutral', 'weights+neutral', 'resample+neutral']:
                     emb = np.asarray([neutral_emb_all[i] for i in train_ids])
@@ -206,9 +204,8 @@ def run_clf_experiments(exp_config: dict):
                 weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
                 sample_weights.append(np.max(weights))
             
-            if params['clf_debias'] == 'resample':
-                print("TODO resample")
-                # TODO: resample embeddings such that all label-group combinations are equally likely (+ gaussian noise)
+            if 'resample' in params['clf_debias']:
+                emb, y, groups = resample(emb, y, groups, add_noise=('noise' in params['clf_debias']))
                 
             # fit the whole pipeline
             if params['clf_debias'] == 'weights':
@@ -235,7 +232,7 @@ def run_clf_experiments(exp_config: dict):
             cur_result['subgroup_AUC'].append(bios_dataset.subgroup_auc)
             cur_result['BPSN'].append(bios_dataset.bpsn)
             cur_result['BNSP'].append(bios_dataset.bnsp)
-            bios_dataset.group_bias(pipeline.predict, emb_eval, save_dir+'pred_neutral.pickle')
+            bios_dataset.group_bias(pipeline.predict, emb_eval_neutral, save_dir+'pred_neutral.pickle')
             cur_result['extrinsic_classwise_neutral'].append(bios_dataset.bias_score) # class-wise GAPs
             cur_result['subgroup_AUC_neutral'].append(bios_dataset.subgroup_auc)
             cur_result['BPSN_neutral'].append(bios_dataset.bpsn)

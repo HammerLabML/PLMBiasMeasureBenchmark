@@ -19,6 +19,43 @@ import numpy as np
 import math
 import pickle
 import time
+from sklearn.utils import resample as sklearn_resample
+
+def resample(X: np.ndarray, y: np.ndarray, groups: list, add_noise=False):
+    assert (len(X) == len(y) and len(y) == len(groups)), "inconsistent number of samples for X,y,groups: "+str(len(X))+","+str(len(y))+","+str(len(groups))
+    assert (len(np.unique(y)) == np.max(y)+1 and len(set(groups)) == max(groups)+1), "some label or group is missing in the dataset/ in this split"
+    n_classes = np.max(y)+1
+    n_groups = max(groups)+1
+    
+    y_group = []
+    ids = [i for i in range(len(y))]
+    for i in range(len(y)):
+        combined_y = y[i]*n_groups+groups[i]
+        y_group.append(combined_y)
+            
+    ids, _ = sklearn_resample(ids,y_group)
+    ids_done = []
+    if add_noise:
+        print("resample with noise...")
+        var_X = np.std(X, axis=1)
+        print(var_X.shape)
+        
+        X_new = []
+        for i in ids:
+            if i in ids_done:
+                noise = np.asarray([np.random.normal(0,var_X[j]/20) for j in range(X.shape[1])])
+                X_new.append(np.asarray(X[i])+noise)
+            else:
+                X_new.append(X[i])
+        X = np.asarray(X_new)
+    else:
+        X = np.asarray([X[i] for i in ids])
+    y = np.asarray([y[i] for i in ids])
+    groups = [groups[i] for i in ids]
+    print("data shape after resample:")
+    print(X.shape)
+    return X, y, groups
+    
 
 class BiasDataset():
     
