@@ -395,7 +395,7 @@ class BiosDataset(BiasDataset):
                 group = self.sel_groups.index('female')
 
             new_sample = {'id': idx, 'text': sample['raw'][sample['start_pos']:], 'counterfactual': sample['bio'], 'label': label, 
-                          'bias_type': 'gender', 'group': group}
+                          'bias_type': 'gender', 'group': group, 'name': sample['name']}
             self.data.append(new_sample)
             idx += 1
             
@@ -420,6 +420,7 @@ class BiosDataset(BiasDataset):
             bio = sample['counterfactual'].lower()
             for attr in attributes[sample['group']]:
                 bio = bio.replace(' '+attr+' ', '_')
+                bio = bio.replace(' '+attr+'s ', '_')
             neutral_sent.append(bio)
             labels.append(sample['label'])
             groups.append(sample['group'])
@@ -437,13 +438,18 @@ class BiosDataset(BiasDataset):
             for i, attr in enumerate(attributes[true_group]):
                 cf_attr = attributes[cf_group][i]
                 bio = bio.replace(' '+attr+' ', ' '+cf_attr+' ')
+                bio = bio.replace(' '+attr+'s ', ' '+cf_attr+'s ')
+            for name in sample['name'][:-1]: # last name doesn't reveal gender
+                if len(name) > 2:
+                    name = name.lower()
+                    bio = bio.replace(name, name[0])
             cf_sent.append(bio)
             labels.append(sample['label'])
             groups.append(sample['group'])
             
         return cf_sent, labels, groups
     
-    def individual_bias(self, prediction_wrapper: Callable, emb, emb_cf):
+    def individual_bias(self, prediction_wrapper: Callable, emb, emb_cf, savefile):
         assert len(emb) == len(self.eval_data)
         self.individual_biases = []
         
@@ -453,6 +459,10 @@ class BiosDataset(BiasDataset):
         
         y_pred = prediction_wrapper(emb, as_proba=True)
         y_pred_cf = prediction_wrapper(emb_cf, as_proba=True)
+        
+        pred = {'raw': y_pred, 'cf': y_pred_cf}
+        with open(savefile, 'wb') as handle:
+            pickle.dump(pred, handle)
         
         for i in range(y_pred.shape[0]):
             y_pred_i = y_pred[i,:]
@@ -465,7 +475,7 @@ class BiosDataset(BiasDataset):
         #bias = np.sum(np.abs(y_pred[y_true==1]-y_pred_cf[y_true==1])) / np.sum(y_true)
         
     
-    def group_bias(self, prediction_wrapper: Callable, emb):
+    def group_bias(self, prediction_wrapper: Callable, emb, savefile):
         assert len(emb) == len(self.eval_data)
         
         y_true = np.asarray([sample['label'] for sample in self.eval_data])
@@ -473,6 +483,9 @@ class BiosDataset(BiasDataset):
         #sent = [sample['text'] for sample in self.eval_data]
         
         y_pred = prediction_wrapper(emb)
+        
+        with open(savefile, 'wb') as handle:
+            pickle.dump(y_pred, handle)
         
         gaps = gap_score_one_hot(y_pred, y_true, groups)
         self.bias_score = gaps # class-wise gaps
