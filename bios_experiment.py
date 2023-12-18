@@ -223,15 +223,15 @@ def run_clf_experiments(exp_config: dict):
             emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
             emb_eval_cf = np.asarray([cf_emb_all[i] for i in eval_ids])
             emb_eval_neutral = np.asarray([neutral_emb_all[i] for i in eval_ids])
-            bios_dataset.individual_bias(pipeline.predict, emb_eval, emb_eval_cf, save_dir+'pred_cf.pickle')
-            bios_dataset.group_bias(pipeline.predict, emb_eval, save_dir+'pred_raw.pickle')
+            bios_dataset.individual_bias(pipeline.predict, emb_eval, emb_eval_cf, savefile=(params['predictions'].replace('.pickle', '_cf.pickle')))
+            bios_dataset.group_bias(pipeline.predict, emb_eval, savefile=(params['predictions'].replace('.pickle', '_raw.pickle')))
             cur_result['extrinsic_individual'].append(bios_dataset.individual_biases)
             cur_result['extrinsic_classwise'].append(bios_dataset.bias_score) # class-wise GAPs
             cur_result['extrinsic'].append(np.mean(np.abs(bios_dataset.bias_score)))
             cur_result['subgroup_AUC'].append(bios_dataset.subgroup_auc)
             cur_result['BPSN'].append(bios_dataset.bpsn)
             cur_result['BNSP'].append(bios_dataset.bnsp)
-            bios_dataset.group_bias(pipeline.predict, emb_eval_neutral, save_dir+'pred_neutral.pickle')
+            bios_dataset.group_bias(pipeline.predict, emb_eval_neutral, savefile=(params['predictions'].replace('.pickle', '_neutral.pickle')))
             cur_result['extrinsic_classwise_neutral'].append(bios_dataset.bias_score) # class-wise GAPs
             cur_result['subgroup_AUC_neutral'].append(bios_dataset.subgroup_auc)
             cur_result['BPSN_neutral'].append(bios_dataset.bpsn)
