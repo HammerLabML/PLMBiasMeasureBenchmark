@@ -134,6 +134,8 @@ def run_clf_experiments(exp_config: dict):
         
         print("embed all raw bios...")
         target_emb_all = lm.embed([sample['text'].lower() for sample in bios_dataset.sel_data])
+        labels = [sample['label'] for sample in jigsaw_dataset.data]
+        group_label = [sample['group'] for sample in jigsaw_dataset.data]
         
         print("embed all counterfactual bios...")
         targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
@@ -187,7 +189,7 @@ def run_clf_experiments(exp_config: dict):
             if params['clf_debias'] == 'add_cf':
                 emb = np.asarray([target_emb_all[i] for i in train_ids]+[cf_emb_all[i] for i in train_ids])
                 groups = [sample['group'] for sample in bios_dataset.train_data]+[groups_cf[i] for i in train_ids]
-                y = np.asarray([sample['label'] for sample in bios_dataset.train_data]+[labels_cf[i] for i in train_ids])
+                y = np.asarray([labels[i] for i in train_ids]+[labels_cf[i] for i in train_ids])
             else:
                 if params['clf_debias'] in ['no', 'weights', 'resample', 'resample_noise']:
                     emb = np.asarray([target_emb_all[i] for i in train_ids])
@@ -243,7 +245,7 @@ def run_clf_experiments(exp_config: dict):
                 emb_eval = pipeline.debiaser.predict(np.asarray(emb_eval), pipeline.debias_k)
                 emb_eval_cf = pipeline.debiaser.predict(np.asarray(emb_eval_cf), pipeline.debias_k)
                 emb_eval_neutral = pipeline.debiaser.predict(np.asarray(emb_eval_neutral), pipeline.debias_k)
-            target_label = [labels_cf[i] for i in eval_ids]
+            target_label = [labels[i] for i in eval_ids]
             target_groups = [groups_cf[i] for i in eval_ids]
             target_emb_per_group = []
             target_emb_cf_per_group = []

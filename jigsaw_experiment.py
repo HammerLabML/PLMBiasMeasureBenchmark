@@ -26,7 +26,10 @@ def run_clf_experiments(exp_config: dict):
     with open(exp_config['batch_size_lookup'], 'r') as f:
         batch_size_lookup = json.load(f)
     
-    save_file = exp_config['save_file']
+    save_dir = exp_config['save_dir']
+    save_file = save_dir+'res.pickle'
+    if not os.path.isdir(save_dir):
+        os.makedirs(save_dir)
     if os.path.isfile(save_file):
         print("load previous results...")
         with open(save_file, 'rb') as handle:
@@ -46,13 +49,15 @@ def run_clf_experiments(exp_config: dict):
                     for optim in exp_config['clf_optimizer']:
                         for crit in exp_config['clf_criterion']:
                             # one without debias anyway
-                            params = {key: exp_config[key] for key in ['bias_scores', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
+                            params = {key: exp_config[key] for key in ['bias_scores', 'n_fold', 'batch_size', 'epochs', 'clf_debias']}
+                            params.update({'predictions': save_dir+'pred_'+str(len(exp_parameters))+'.pickle'})
                             params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
                                            'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias': False})
                             exp_parameters.append(params)
                             if exp_config['debias']:
                                 for k in exp_config['debias_k']:
-                                    params = {key: exp_config[key] for key in ['bias_scores', 'debias', 'n_fold', 'batch_size', 'epochs', 'group_weights']}
+                                    params = {key: exp_config[key] for key in ['bias_scores', 'debias', 'n_fold', 'batch_size', 'epochs', 'clf_debias']}
+                                    params.update({'predictions': save_dir+'pred_'+str(len(exp_parameters))+'.pickle'})
                                     params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
                                                    'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias_k': k})
                                     exp_parameters.append(params)        
@@ -113,12 +118,11 @@ def run_clf_experiments(exp_config: dict):
         else:
             batch_size = batch_size_lookup[model_name]
         
-        cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'extrinsic_classwise': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': []} # cosine scores on training data
-        #cur_result_test = {'id': i, 'extrinsic': [], 'extrinsic_individual': []} # cosine scores on test data
+        cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'extrinsic_classwise': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': [], 
+                      'extrinsic_classwise_neutral': [], 'subgroup_AUC_neutral': [], 'BPSN_neutral': [], 'BNSP_neutral': []} # cosine scores on training data
         for score in cosine_scores:
-            cur_result.update({score: [], score+'_individual': [], score+'_classwise': []})
-            #cur_result_test.update({score: [], score+'_individual': []})
-            
+            cur_result.update({score: [], score+'_cf': [], score+'_neutral': [], score+'_individual': [], score+'_classwise': [], score+'_classwise_neutral': []})
+                        
         print("load model ", model_name)
         is_hugginface_model = True
         if 'fasttext' in model_name or 'word2vec' in model_name or 'glove' in model_name or 'conceptnet' in model_name:
@@ -135,23 +139,20 @@ def run_clf_experiments(exp_config: dict):
         attributes = [terms_by_groups[group] for group in groups_by_bias_types[params['bias_type']]]
         attr_emb = [lm.embed(attr) for attr in attributes]
         
-        print("embed all raw bios...")
+        print("embed all raw texts...")
         target_emb_all = lm.embed([sample['text'] for sample in jigsaw_dataset.data])
         labels = [sample['label'] for sample in jigsaw_dataset.data]
         group_label = [sample['group'] for sample in jigsaw_dataset.data]
         
-        #print("embed samples...")
-        #print("embed all neutralized samples...")
-        #targets, labels, group_label = jigsaw_dataset.get_neutral_samples_by_masking(attributes)
-        #assert len(set(group_label)) == n_groups, "mismatch of group label / n_groups: "+str(len(set(group_label)))+" / "+str(n_groups)
-        
-        #print("embed ", len(targets), "neutral target samples")
-        #target_emb_all = lm.embed(targets)
-        
         #print("embed all counterfactual bios...")
-        #targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
+        #targets_cf, labels_cf, groups_cf = jigsaw_dataset.get_counterfactual_samples(attributes)
         #assert len(set(groups_cf)) == n_groups
         #cf_emb_all = lm.embed(targets_cf)
+        
+        print("embed all neutralized bios...")
+        targets_neutral, _, _ = jigsaw_dataset.get_neutral_samples_by_masking(attributes)
+        neutral_emb_all = lm.embed(targets_neutral)
+        
             
         for fold_id in range(params['n_fold']):
             if params['head'] == 'SimpleCLFHead':
@@ -187,31 +188,40 @@ def run_clf_experiments(exp_config: dict):
             
             # get samples
             train_ids = [sample['id'] for sample in jigsaw_dataset.train_data]
-            emb = np.asarray([target_emb_all[i] for i in train_ids])
-            y = np.asarray([sample['label'] for sample in jigsaw_dataset.train_data])
-            groups = [sample['group'] for sample in jigsaw_dataset.train_data]
+            clf_debias_methods = ['no', 'weights', 'resample', 'neutral', 'weights+neutral', 'resample+neutral', 'resample_noise'] # , 'add_cf'
+            if params['clf_debias'] not in clf_debias_methods:
+                print("clf debias method unknown. select one of these: ")
+                print(clf_debias_methods)
+                return
+            if False: #params['clf_debias'] == 'add_cf':
+                emb = np.asarray([target_emb_all[i] for i in train_ids]+[cf_emb_all[i] for i in train_ids])
+                groups = [sample['group'] for sample in jigsaw_dataset.train_data]+[groups_cf[i] for i in train_ids]
+                y = np.asarray([sample['label'] for sample in jigsaw_dataset.train_data]+[labels_cf[i] for i in train_ids])
+            else:
+                if params['clf_debias'] in ['no', 'weights', 'resample', 'resample_noise']:
+                    emb = np.asarray([target_emb_all[i] for i in train_ids])
+                elif params['clf_debias'] in ['neutral', 'weights+neutral', 'resample+neutral']:
+                    emb = np.asarray([neutral_emb_all[i] for i in train_ids])
+                y = np.asarray([sample['label'] for sample in jigsaw_dataset.train_data])
+                groups = [sample['group'] for sample in jigsaw_dataset.train_data]
             
             assert len(groups) == y.shape[0]
             
-            # get sample weights
-            #print(class_gender_weights)
-            #sample_weights = []
-            #for sample in jigsaw_dataset.train_data:
-            #    cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
-            #    cur_group = jigsaw_dataset.sel_groups[sample['group']]
-            #    weights = [class_gender_weights[cur_group][lbl] for lbl in cur_labels]
-            #    try:
-            #        sample_weights.append(np.max(weights))
-            #    except ValueError:
-            #        print(cur_labels)
-            #        print(cur_group)
-            #        print(weights)
-            
+            if 'resample' in params['clf_debias']:
+                emb, y, groups = resample(emb, y, groups, add_noise=('noise' in params['clf_debias']))
+                
             # fit the whole pipeline
-            #if params['group_weights']:
-            #    recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
-            #else:
-            recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
+            if params['clf_debias'] == 'weights':
+                # get sample weights
+                sample_weights = []
+                for sample in jigsaw_dataset.train_data:
+                    cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
+                    group = jigsaw_dataset.sel_groups[sample['group']]
+                    weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
+                    sample_weights.append(np.max(weights))
+                recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
+            else:
+                recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
             
             cur_result['recall'] = recall
             cur_result['precision'] = precision
@@ -222,38 +232,49 @@ def run_clf_experiments(exp_config: dict):
             print("compute extrinsic biases...")
             eval_ids = [sample['id'] for sample in jigsaw_dataset.eval_data]
             emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
-            y_eval = np.asarray([sample['label'] for sample in jigsaw_dataset.eval_data])
-            #print("positive eval samples per class:")
-            #print(np.sum(y_eval, axis=0))
-            #print(jigsaw_dataset.labels)
-            jigsaw_dataset.group_bias(pipeline.predict, emb_eval)
+            #emb_eval_cf = np.asarray([cf_emb_all[i] for i in eval_ids])
+            emb_eval_neutral = np.asarray([neutral_emb_all[i] for i in eval_ids])
+            #jigsaw_dataset.individual_bias(pipeline.predict, emb_eval, emb_eval_cf, , savefile=(params['predictions'].replace('.pickle', '_cf.pickle')))
+            jigsaw_dataset.group_bias(pipeline.predict, emb_eval, savefile=(params['predictions'].replace('.pickle', '_raw.pickle')))
             #cur_result['extrinsic_individual'].append(jigsaw_dataset.individual_biases)
             cur_result['extrinsic_classwise'].append(jigsaw_dataset.bias_score) # class-wise GAPs
             cur_result['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
             cur_result['subgroup_AUC'].append(jigsaw_dataset.subgroup_auc)
             cur_result['BPSN'].append(jigsaw_dataset.bpsn)
             cur_result['BNSP'].append(jigsaw_dataset.bnsp)
-            #cur_result_test['extrinsic_individual'].append(jigsaw_dataset.bias_score) # class-wise GAPs
-            #cur_result_test['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
+            jigsaw_dataset.group_bias(pipeline.predict, emb_eval_neutral, savefile=(params['predictions'].replace('.pickle', '_neutral.pickle')))
+            cur_result['extrinsic_classwise_neutral'].append(jigsaw_dataset.bias_score) # class-wise GAPs
+            cur_result['subgroup_AUC_neutral'].append(jigsaw_dataset.subgroup_auc)
+            cur_result['BPSN_neutral'].append(jigsaw_dataset.bpsn)
+            cur_result['BNSP_neutral'].append(jigsaw_dataset.bnsp)
+            
             
             # also compute cosine scores on test data
             print("compute cosine scores on eval data...")
-            target_emb = [target_emb_all[i] for i in eval_ids]
             if params['debias']:
-                target_emb = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
+                emb_eval = pipeline.debiaser.predict(np.asarray(emb_eval), pipeline.debias_k)
+                #emb_eval_cf = pipeline.debiaser.predict(np.asarray(emb_eval_cf), pipeline.debias_k)
+                emb_eval_neutral = pipeline.debiaser.predict(np.asarray(emb_eval_neutral), pipeline.debias_k)
             target_label = [labels[i] for i in eval_ids]
             target_groups = [group_label[i] for i in eval_ids]
             target_emb_per_group = []
+            #target_emb_cf_per_group = []
+            target_emb_neutral_per_group = []
             for group in range(max(group_label)+1):
                 group_name = jigsaw_dataset.sel_groups[group]
                 emb = []
+                #emb_cf = []
+                emb_n = []
                 for i in range(len(eval_ids)):
                     for lbl in classes_by_majority_group[group_name]:
                         lbl_idx = titles.index(lbl)
                         if target_label[i][lbl_idx] == 1:
-                            emb.append(target_emb[i])
+                            emb.append(emb_eval[i])
+                #            emb_cf.append(emb_eval_cf[i])
+                            emb_n.append(emb_eval_neutral[i])
                 target_emb_per_group.append(emb)
-                print("got ", len(emb), " embeddings for group ", group)
+                #target_emb_cf_per_group.append(emb)
+                target_emb_neutral_per_group.append(emb)
 
             # compute cosine scores
             for score in params['bias_scores']:
@@ -270,23 +291,33 @@ def run_clf_experiments(exp_config: dict):
                 if not score == 'gWEAT':
                     if score == 'SAME' and n_groups == 2:
                         print("use signed SAME score for binary bias eval")
-                        #individual_biases = [cur_score.signed_individual_bias(emb_eval_cf[i]) - cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        #individual_biases = [cur_score.signed_individual_bias(emb_eval_cf[i]) - cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label))]
                         #cur_result[score+'_individual'].append(individual_biases)
-                        class_biases = [np.mean([cur_score.signed_individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        class_biases = [np.mean([cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
+                        class_biases_n = [np.mean([cur_score.signed_individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        cur_result[score+'_classwise_neutral'].append(class_biases_n)
                     else:
-                        #individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(target_emb[i]) for i in range(len(target_label))]
+                        #individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label))]
                         #cur_result[score+'_individual'].append(individual_biases)
-                        class_biases = [np.mean([cur_score.individual_bias(target_emb[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        class_biases = [np.mean([cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
+                        class_biases_n = [np.mean([cur_score.individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        cur_result[score+'_classwise_neutral'].append(class_biases_n)
 
                 if score in ['WEAT', 'gWEAT']:
                     bias = cur_score.group_bias(target_emb_per_group)
+                    #bias_cf = cur_score.group_bias(target_emb_cf_per_group)
+                    bias_n = cur_score.group_bias(target_emb_neutral_per_group)
                 else:
                     # SAME, DirectBias, MAC
-                    bias = cur_score.mean_individual_bias(target_emb)
+                    bias = cur_score.mean_individual_bias(emb_eval)
+                    #bias_cf = cur_score.mean_individual_bias(emb_eval_cf)
+                    bias_n = cur_score.mean_individual_bias(emb_eval_neutral)
 
                 cur_result[score].append(bias)
+                #cur_result[score+'_cf'].append(bias_cf)
+                cur_result[score+'_neutral'].append(bias_n)
             
         # remove model from GPU
         lm.model.to('cpu')
