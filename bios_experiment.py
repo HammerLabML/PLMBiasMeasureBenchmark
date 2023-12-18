@@ -142,7 +142,7 @@ def run_clf_experiments(exp_config: dict):
         
         print("embed all neutralized bios...")
         targets_neutral, _, _ = bios_dataset.get_neutral_samples_by_masking(attributes)
-        neutral_emb_all = lm.embed(targets_cf)
+        neutral_emb_all = lm.embed(targets_neutral)
             
         for fold_id in range(params['n_fold']):
             if params['head'] == 'SimpleCLFHead':
@@ -196,19 +196,18 @@ def run_clf_experiments(exp_config: dict):
                 y = np.asarray([sample['label'] for sample in bios_dataset.train_data])
                 groups = [sample['group'] for sample in bios_dataset.train_data]
             
-            # get sample weights
-            sample_weights = []
-            for sample in bios_dataset.train_data:
-                cur_labels = [bios_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
-                group = bios_dataset.sel_groups[sample['group']]
-                weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
-                sample_weights.append(np.max(weights))
-            
             if 'resample' in params['clf_debias']:
                 emb, y, groups = resample(emb, y, groups, add_noise=('noise' in params['clf_debias']))
                 
             # fit the whole pipeline
             if params['clf_debias'] == 'weights':
+                # get sample weights
+                sample_weights = []
+                for sample in bios_dataset.train_data:
+                    cur_labels = [bios_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
+                    group = bios_dataset.sel_groups[sample['group']]
+                    weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
+                    sample_weights.append(np.max(weights))
                 recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
             else:
                 recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
