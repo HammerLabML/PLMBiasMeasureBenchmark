@@ -747,7 +747,7 @@ class JigsawDataset(BiasDataset):
         # ?? toxicity score (vs. counterfactual)
         
     
-    def group_bias(self, prediction_wrapper: Callable, emb):
+    def group_bias(self, prediction_wrapper: Callable, emb, savefile):
         assert len(emb) == len(self.eval_data)
         
         y_true = np.asarray([sample['label'] for sample in self.eval_data])
@@ -755,6 +755,9 @@ class JigsawDataset(BiasDataset):
         #sent = [sample['text'] for sample in self.eval_data]
         
         y_pred = prediction_wrapper(emb)
+        
+        with open(savefile, 'wb') as handle:
+            pickle.dump(y_pred, handle)
         
         gaps = gap_score_one_hot(y_pred, y_true, groups)
         self.bias_score = gaps # class-wise gaps
