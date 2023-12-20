@@ -65,7 +65,7 @@ def run_mlm_experiments(exp_config: dict):
                     params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False, 'debias_k': 0}
                     exp_parameters.append(params)
                     for k in exp_config['debias_k']:
-                        params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False, 'debias_k': k}
+                        params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': True, 'debias_k': k}
                         exp_parameters.append(params)
                                    
                 exp_parameters.append(params)
@@ -108,6 +108,7 @@ def run_mlm_experiments(exp_config: dict):
         if params['debias']:
             pipeline.fit_debias(attributes)
 
+        # TODO: here more biases ~ larger diff in stereo/less stereo PLL, but the direction must be omitted because any group can be the "baseline" so directions switch
         csp_dataset.compute_group_bias(pipeline.model_name, pipeline.compare_sentence_likelihood)
         csp_dataset.compute_individual_bias(pipeline.model_name, pipeline.compare_sentence_likelihood)
         cur_result = {'id': i, 'extrinsic_individual': csp_dataset.individual_biases, 'extrinsic': csp_dataset.bias_score}
@@ -119,8 +120,9 @@ def run_mlm_experiments(exp_config: dict):
 
         target_emb = pipeline.embed(targets, average='mean')
         if params['debias']:
+            print("apply debiasing before computing cosine scores")
             target_emb2 = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
-            print(target_emb2 == target_emb)
+            print("debias failed: ", target_emb2 == target_emb)
             target_emb = target_emb2
 
         # sorted by stereotypical group
