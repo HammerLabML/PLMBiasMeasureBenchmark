@@ -109,10 +109,13 @@ class Debias():
 
     def predict(self, emb, k=3):
         dtype = emb.dtype
-        print("Debias: predict with k="+str(k))
+        #print("Debias: predict with k="+str(k))
         X = self.normalize(emb)
-        debiased = [self.dropspace(X[i,:], self.pca.components_[:k]) for i in range(X.shape[0])]
-        return self.normalize(np.asarray(debiased, dtype=dtype))
+        if len(X.shape) == 3: # (#samples,#token,#embedding dim)
+            debiased = np.asarray([[self.dropspace(X[i,j,:], self.pca.components_[:k]) for j in range(X.shape[1])] for i in range(X.shape[0])], dtype=dtype)
+        elif len(X.shape) == 2: # (#samples,#embedding dim)
+            debiased = np.asarray([self.dropspace(X[i,:], self.pca.components_[:k]) for i in range(X.shape[0])], dtype=dtype)
+        return self.normalize(debiased)
     
 
 class CLFHead(torch.nn.Module):
@@ -512,6 +515,9 @@ class MLMPipeline():
         token_ids = encoding['input_ids']
         unmodified_id_lists = encoding['unmodified']
         attention_mask = encoding['attention_mask']
+        
+        if self.debiaser is not None and self.debiaser.pca is not None:
+            print("apply debiasing when predicting token probs")
 
         res = []
         for idx in tqdm(range(token_ids.size()[0])):
@@ -547,7 +553,7 @@ class MLMPipeline():
         
     def fit_debias(self, attributes: list):
         # only fits the debiaser!
-        if self.debiaser is not None and group_label is not None:
+        if self.debiaser is not None:
             print("embed attributes...")
             emb_per_group = []
             for group_attr in attributes:
