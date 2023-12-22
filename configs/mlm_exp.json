@@ -2,7 +2,7 @@
 "bias_types": ["race-color", "gender", "religion", "age"],
 "bias_scores": ["SAME", "WEAT", "gWEAT", "DirectBias", "MAC"],
 "mlm": ["bert-base-uncased", "bert-large-uncased", "distilbert-base-uncased", "roberta-base", "roberta-large", "distilroberta-base", "xlm-roberta-base", "albert-base-v2", "albert-large-v2", "google/electra-base-generator", "google/electra-large-generator", "bert-base-multilingual-uncased", "GroNLP/hateBERT", "Twitter/twhin-bert-base", "Twitter/twhin-bert-large", "xlm-roberta-large"],
-"debias": false,
-"debias_k": [1,3],
+"debias": true,
+"debias_k": [1,3,5,7,9],
 "save_file": "results/res_mlm.pickle",
-"batch_size_lookup": "data/batch_size_lookup_1080_mlm.json"}
+"batch_size_lookup": "data/batch_size_lookup_1080.json"}
