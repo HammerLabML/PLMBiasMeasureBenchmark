@@ -57,18 +57,13 @@ def run_mlm_experiments(exp_config: dict):
         for bt in exp_config['bias_types']:
             # mlm experiments
             for mlm in exp_config['mlm']:
-                params = {key: exp_config[key] for key in ['bias_scores', 'debias']}
-                params.update({'bias_type': bt, 'mlm': mlm})
+                params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False, 'debias_k': 0}
+                exp_parameters.append(params)
                 
                 if exp_config['debias']:
-                    # one without debias
-                    params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': False, 'debias_k': 0}
-                    exp_parameters.append(params)
                     for k in exp_config['debias_k']:
                         params = {'bias_type': bt, 'mlm': mlm, 'bias_scores': exp_config['bias_scores'], 'debias': True, 'debias_k': k}
                         exp_parameters.append(params)
-                                   
-                exp_parameters.append(params)
                             
     # load the datasets
     csp_dataset = CrowSPairsDataset(groups_by_bias_types, terms_by_groups)
