@@ -134,8 +134,8 @@ def run_clf_experiments(exp_config: dict):
         
         print("embed all raw bios...")
         target_emb_all = lm.embed([sample['text'].lower() for sample in bios_dataset.sel_data])
-        labels = [sample['label'] for sample in jigsaw_dataset.data]
-        group_label = [sample['group'] for sample in jigsaw_dataset.data]
+        labels = [sample['label'] for sample in bios_dataset.data]
+        group_label = [sample['group'] for sample in bios_dataset.data]
         
         print("embed all counterfactual bios...")
         targets_cf, labels_cf, groups_cf = bios_dataset.get_counterfactual_samples(attributes)
