@@ -278,24 +278,26 @@ def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: np.nd
     
     gaps = []
     for c in range(n_classes):
-        y_pred_c = [y_pred[i] for i in range(n_samples) if y_true == c]
-        y_true_c = [y_true[i] for i in range(n_samples) if y_true == c]
-        groups_c = [groups[i] for i in range(n_samples) if y_true == c]
-        
+        y_pred_c = [y_pred[i] for i in range(n_samples) if y_true[i] == c]
+        y_true_c = [y_true[i] for i in range(n_samples) if y_true[i] == c]
+        groups_c = [groups[i] for i in range(n_samples) if y_true[i] == c]
+
         group_tp = []
         for g in range(n_groups):
-            y_pred_cg = [y_pred_c[i] for i in range(n_samples) if groups[i] == g]
-            y_true_cg = [y_true_c[i] for i in range(n_samples) if groups[i] == g]
+            c_samples = len(y_true_c)
+            y_pred_cg = [y_pred_c[i] for i in range(c_samples) if groups_c[i] == g]
+            y_true_cg = [y_true_c[i] for i in range(c_samples) if groups_c[i] == g]
             tp = y_pred_cg.count(c)/len(y_true_cg)
             group_tp.append(tp)
-        
+
         if n_groups == 2:
             gaps.append(group_tp[0]-group_tp[1])
         else:
-            gaps.append(np.var(group_tp))
+            gaps.append(np.std(group_tp))
     return gaps
 
-def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
+# target label 1 -> TP, target label 0 -> TN
+def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray, target_label=1):
     assert len(y_pred.shape) == 2
     assert y_pred.shape == y_true.shape
     n_groups = np.max(groups)+1
@@ -311,7 +313,7 @@ def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray
         for g in range(n_groups):
             y_pred_cg = [y_pred_c[i] for i in range(n_samples) if groups[i] == g]
             y_true_cg = [y_true_c[i] for i in range(n_samples) if groups[i] == g]
-            tp = len([1 for i in range(len(y_pred_cg)) if y_true_cg[i] == 1 and y_pred_cg[i] == 1])/np.sum(y_true_cg)
+            tp = len([1 for i in range(len(y_pred_cg)) if y_true_cg[i] == target_label and y_pred_cg[i] == target_label])/np.sum(y_true_cg)
             group_tp.append(tp)
         
         if n_groups == 2:
@@ -319,6 +321,12 @@ def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray
         else:
             gaps.append(np.var(group_tp))
     return gaps
+
+def tp_gap_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
+    gap_score_one_hot(y_pred, y_true, groups, target_label=1)
+
+def tn_gap_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
+    gap_score_one_hot(y_pred, y_true, groups, target_label=0)
 
 
 def compute_AUC(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
@@ -524,7 +532,7 @@ class BiosDataset(BiasDataset):
         with open(savefile, 'wb') as handle:
             pickle.dump(y_pred, handle)
         
-        gaps = gap_score_one_hot(y_pred, y_true, groups)
+        gaps = tp_gap_one_hot(y_pred, y_true, groups)
         self.bias_score = gaps # class-wise gaps
         print("GAPs:", self.bias_score)
         
@@ -647,13 +655,15 @@ class JigsawDataset(BiasDataset):
         for i, lbl in enumerate(self.labels):
             if sample[lbl] > 0.66: # 2/3 majority vote
                 label[i] = 1
+            elif sample[lbl] > 0.33: # uncertain if toxic or not -> remove
+                return None
                 
         bias_types = []
         found_groups = []
         for bias_type, groups in self.groups_by_bias_types.items():
             for group in groups:
                 group_jigsaw = self.translate_group_name(group)
-                if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.66: # 2/3 majority vote
+                if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.66: # 2/3 majority vote of annotators
                     bias_types.append(bias_type)
                     found_groups.append(self.groups_by_bias_types[bias_type].index(group))
             #if bias_types.count(bias_type) > 1:
@@ -755,11 +765,13 @@ class JigsawDataset(BiasDataset):
         #sent = [sample['text'] for sample in self.eval_data]
         
         y_pred = prediction_wrapper(emb)
+        y_prob = prediction_wrapper(emb, as_proba=True)
         
         with open(savefile, 'wb') as handle:
-            pickle.dump(y_pred, handle)
-        
-        gaps = gap_score_one_hot(y_pred, y_true, groups)
+            pickle.dump(y_prob, handle)
+
+        print(y_true.flatten().shape)
+        gaps = gap_score_single_label(y_pred.flatten(), y_true.flatten(), groups)
         self.bias_score = gaps # class-wise gaps
         print("GAPs:", self.bias_score)
         

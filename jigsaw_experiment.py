@@ -61,7 +61,7 @@ def run_clf_experiments(exp_config: dict):
                                     params.update({'bias_type': bt, 'embedder': embedder, 'head': head, 
                                                    'optimizer': optim, 'criterion': crit, 'lr': exp_config['lr'], 'debias_k': k})
                                     exp_parameters.append(params)        
-                            
+
     # load the datasets
     print("load dataset...")
     jigsaw_dataset = JigsawDataset(n_folds=exp_config['n_fold'], dataset_dir=exp_config['jigsaw_dir'], dataset_checkpoint=exp_config['transformed_data'], bias_types=exp_config['bias_types'], 
@@ -87,25 +87,53 @@ def run_clf_experiments(exp_config: dict):
             jigsaw_dataset.sel_attributes(params['bias_type'])
             n_groups = len(jigsaw_dataset.sel_groups)-1
 
-            sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups[:-1]} for title in jigsaw_dataset.labels}
-            for sample in jigsaw_dataset.data:
-                for i in range(sample['label'].shape[0]):
-                    if sample['label'][i] == 1 and sample['group'] < len(jigsaw_dataset.sel_groups)-1:
-                        sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1
+            if len(jigsaw_dataset.labels) == 1:
+                # special case single label, binary
+                sample_dist = {lbl: {group: 0 for group in jigsaw_dataset.sel_groups[:-1]} for lbl in [0, 1]}
+                for sample in jigsaw_dataset.data:
+                    if sample['group'] < len(jigsaw_dataset.sel_groups)-1:
+                        sample_dist[sample['label'][0]][jigsaw_dataset.sel_groups[sample['group']]] += 1
+                print("single,binary label sample dist: ")
+                print(sample_dist)
+            else:
+                # multi label
+                sample_dist = {title: {group: 0 for group in jigsaw_dataset.sel_groups[:-1]} for title in jigsaw_dataset.labels}
+                for sample in jigsaw_dataset.data:
+                    for i in range(sample['label'].shape[0]):
+                        if sample['label'][i] == 1 and sample['group'] < len(jigsaw_dataset.sel_groups)-1:
+                            sample_dist[jigsaw_dataset.labels[i]][jigsaw_dataset.sel_groups[sample['group']]] += 1
+                print("multi label sample dist: ")
+                print(sample_dist)
 
             df = pd.DataFrame(sample_dist)
-            #print("class/group distribution:")
-            #with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
-            #    print(df)
-            #print()
+            print("class/group distribution:")
+            with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.precision', 3):
+                print(df)
+            print()
+
+            #print(df.sum(axis=0)) -> class-wise sum
 
             samples_per_group = [np.sum(df.loc[group]) for group in jigsaw_dataset.sel_groups[:-1]]
             classes_by_majority_group = {group: [] for group in jigsaw_dataset.sel_groups[:-1]}
+
+            # assign every class to its majority group (normalized by samples per group)
             for cur_class, dist in sample_dist.items():
+                print("% of group samples for class ", cur_class)
+                print(np.divide(list(dist.values()), samples_per_group))
                 max_group_id = np.argmax(np.divide(list(dist.values()), samples_per_group))
                 group = jigsaw_dataset.sel_groups[max_group_id]
                 classes_by_majority_group[group].append(cur_class)
-                        
+
+            # test if every group has been assigned at least one class,
+            # otherwise add the class where the group makes up the highest ratio of samples
+            for group in jigsaw_dataset.sel_groups[:-1]:
+                if len(classes_by_majority_group[group]) == 0:
+                    group_samples = df.loc[group].to_numpy()
+                    samples_per_class = np.asarray([np.sum([sample_dist[label][group] for group in jigsaw_dataset.sel_groups[:-1]]) for label in sample_dist.keys()])
+                    print("% of class samples for group ", group)
+                    print(np.divide(group_samples, samples_per_class))
+                    max_class_id = np.argmax(np.divide(group_samples, samples_per_class))
+                    classes_by_majority_group[group] = [list(sample_dist.keys())[max_class_id]]
 
             print("classes per majority group: ")
             print(classes_by_majority_group)
@@ -119,7 +147,7 @@ def run_clf_experiments(exp_config: dict):
             batch_size = batch_size_lookup[model_name]
         
         cur_result = {'id': i, 'extrinsic': [], 'extrinsic_individual': [], 'extrinsic_classwise': [], 'subgroup_AUC': [], 'BPSN': [], 'BNSP': [], 
-                      'extrinsic_classwise_neutral': [], 'subgroup_AUC_neutral': [], 'BPSN_neutral': [], 'BNSP_neutral': []} # cosine scores on training data
+                      'extrinsic_classwise_neutral': [], 'subgroup_AUC_neutral': [], 'BPSN_neutral': [], 'BNSP_neutral': [], 'SAME_groupwise_individual': []} # cosine scores on training data
         for score in cosine_scores:
             cur_result.update({score: [], score+'_cf': [], score+'_neutral': [], score+'_individual': [], score+'_classwise': [], score+'_classwise_neutral': []})
                         
@@ -209,7 +237,8 @@ def run_clf_experiments(exp_config: dict):
             
             if 'resample' in params['clf_debias']:
                 emb, y, groups = resample(emb, y, groups, add_noise=('noise' in params['clf_debias']))
-                
+            print("y shape")
+            print(y.shape)
             # fit the whole pipeline
             if params['clf_debias'] == 'weights':
                 # get sample weights
@@ -267,11 +296,17 @@ def run_clf_experiments(exp_config: dict):
                 emb_n = []
                 for i in range(len(eval_ids)):
                     for lbl in classes_by_majority_group[group_name]:
-                        lbl_idx = titles.index(lbl)
-                        if target_label[i][lbl_idx] == 1:
-                            emb.append(emb_eval[i])
-                #            emb_cf.append(emb_eval_cf[i])
-                            emb_n.append(emb_eval_neutral[i])
+                        if len(jigsaw_dataset.labels) == 1:
+                            if target_label[i][0] == lbl:
+                                emb.append(emb_eval[i])
+                                # emb cf
+                                emb_n.append(emb_eval_neutral[i])
+                        else:
+                            lbl_idx = titles.index(lbl)
+                            if target_label[i][lbl_idx] == 1:
+                                emb.append(emb_eval[i])
+                    #            emb_cf.append(emb_eval_cf[i])
+                                emb_n.append(emb_eval_neutral[i])
                 target_emb_per_group.append(emb)
                 #target_emb_cf_per_group.append(emb)
                 target_emb_neutral_per_group.append(emb)
@@ -286,23 +321,37 @@ def run_clf_experiments(exp_config: dict):
                     cur_score = cosine_scores[score](k=n_groups-1) # have the same dimension of bias space as SAME
                 else:
                     cur_score = cosine_scores[score]()
-                cur_score.define_bias_space(np.asarray(attr_emb))#np.asarray(emb_per_group))
+                cur_score.define_bias_space(np.asarray(attr_emb))
 
                 if not score == 'gWEAT':
                     if score == 'SAME' and n_groups == 2:
                         print("use signed SAME score for binary bias eval")
                         #individual_biases = [cur_score.signed_individual_bias(emb_eval_cf[i]) - cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label))]
-                        #cur_result[score+'_individual'].append(individual_biases)
-                        class_biases = [np.mean([cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        individual_biases = [cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label))]
+                        cur_result[score+'_individual'].append(individual_biases)
+
+                        if len(jigsaw_dataset.labels) == 1:
+                            class_biases = [np.mean([cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][0] == lbl]) for lbl in [0,1]]
+                            class_biases_n = [np.mean([cur_score.signed_individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][0] == lbl]) for lbl in [0,1]]
+                        else:
+                            class_biases = [np.mean([cur_score.signed_individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                            class_biases_n = [np.mean([cur_score.signed_individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
-                        class_biases_n = [np.mean([cur_score.signed_individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise_neutral'].append(class_biases_n)
                     else:
                         #individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label))]
-                        #cur_result[score+'_individual'].append(individual_biases)
-                        class_biases = [np.mean([cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                        individual_biases = [cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label))]
+                        cur_result[score+'_individual'].append(individual_biases)
+                        group_wise_biases = [cur_score.individual_bias_per_pair(emb_eval[i]) for i in range(len(target_label))]
+                        cur_result['SAME_groupwise_individual'].append(group_wise_biases)
+
+                        if len(jigsaw_dataset.labels) == 1:
+                            class_biases = [np.mean([cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][0] == lbl]) for lbl in [0,1]]
+                            class_biases_n = [np.mean([cur_score.individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][0] == lbl]) for lbl in [0,1]]
+                        else:
+                            class_biases = [np.mean([cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
+                            class_biases_n = [np.mean([cur_score.individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise'].append(class_biases)
-                        class_biases_n = [np.mean([cur_score.individual_bias(emb_eval_neutral[i]) for i in range(len(target_label)) if target_label[i][lbl] == 1]) for lbl in range(len(target_label[0]))]
                         cur_result[score+'_classwise_neutral'].append(class_biases_n)
 
                 if score in ['WEAT', 'gWEAT']:
