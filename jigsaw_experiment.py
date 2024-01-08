@@ -342,8 +342,10 @@ def run_clf_experiments(exp_config: dict):
                         #individual_biases = [cur_score.individual_bias(emb_eval_cf[i]) - cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label))]
                         individual_biases = [cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label))]
                         cur_result[score+'_individual'].append(individual_biases)
-                        group_wise_biases = [cur_score.individual_bias_per_pair(emb_eval[i]) for i in range(len(target_label))]
-                        cur_result['SAME_groupwise_individual'].append(group_wise_biases)
+
+                        if score == 'SAME':
+                            group_wise_biases = [cur_score.individual_bias_per_pair(emb_eval[i]) for i in range(len(target_label))]
+                            cur_result['SAME_groupwise_individual'].append(group_wise_biases)
 
                         if len(jigsaw_dataset.labels) == 1:
                             class_biases = [np.mean([cur_score.individual_bias(emb_eval[i]) for i in range(len(target_label)) if target_label[i][0] == lbl]) for lbl in [0,1]]

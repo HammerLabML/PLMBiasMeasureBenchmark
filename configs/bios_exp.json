@@ -13,8 +13,8 @@
 "epochs": 5, 
 "bios_file": "../MeasuringFairnessWithBiasedData/data/BIOS_REVIEWED.pkl", 
 "bios_classes": ["architect", "psychologist", "photographer", "journalist", "attorney", "teacher", "*software architect", "*writer", "surgeon", "physician", "dentist", "nurse"], 
-"save_file": "results/res_bios.pickle", 
+"save_dir": "results/bios/", 
 "batch_size_lookup": "data/batch_size_lookup_1080.json",
-"group_weights": false,
+"clf_debias": "no",
 "validation_score": "f1"
 }
