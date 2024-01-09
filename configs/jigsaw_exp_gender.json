@@ -13,7 +13,7 @@
 "epochs": 5, 
 "jigsaw_dir": "../../data/jigsaw_bias",
 "transformed_data": "data_gender.pickle",
-"labels": ["rating"],
+"labels": ["target"],
 "save_dir": "results/jigsaw_gender/", 
 "batch_size_lookup": "data/batch_size_lookup_1080.json",
 "clf_debias": "no",

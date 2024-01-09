@@ -596,6 +596,9 @@ class JigsawDataset(BiasDataset):
         self.subgroup_auc = []
         self.bpsn = []
         self.bnsp = []
+
+        self.label_keys = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
+        self.group_keys = ['asian', 'atheist', 'bisexual', 'black', 'buddhist', 'christian', 'female', 'heterosexual', 'hindu', 'homosexual_gay_or_lesbian', 'intellectual_or_learning_disability', 'jewish', 'latino', 'male', 'muslim', 'other_disability', 'other_gender', 'other_race_or_ethnicity', 'other_religion', 'other_sexual_orientation', 'physical_disability', 'psychiatric_or_mental_illness', 'transgender', 'white']   
         
     def sel_attributes(self, bias_type: str) -> bool:
         if not bias_type in self.bias_types:
