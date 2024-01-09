@@ -1,7 +1,7 @@
 {"groups_by_bias_types": 
-{"race-color": ["black", "white", "asian", "latino"],
+{"race-color": ["white", "black", "asian", "latino"],
 "gender": ["male", "female"], 
-"sexual-orientation": ["homosexual", "heterosexual", "bisexual"], 
+"sexual-orientation": ["heterosexual", "homosexual", "bisexual"], 
 "religion": ["christian", "muslim", "jewish", "buddhist", "hindu"], 
 "disability": ["intellectual_or_learning_disability", "physical_disability", "psychiatric_or_mental_illness"]
 }, 
