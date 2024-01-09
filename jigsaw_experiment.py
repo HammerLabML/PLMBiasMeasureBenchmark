@@ -264,14 +264,14 @@ def run_clf_experiments(exp_config: dict):
             #emb_eval_cf = np.asarray([cf_emb_all[i] for i in eval_ids])
             emb_eval_neutral = np.asarray([neutral_emb_all[i] for i in eval_ids])
             #jigsaw_dataset.individual_bias(pipeline.predict, emb_eval, emb_eval_cf, , savefile=(params['predictions'].replace('.pickle', '_cf.pickle')))
-            jigsaw_dataset.group_bias(pipeline.predict, emb_eval, savefile=(params['predictions'].replace('.pickle', '_raw.pickle')))
+            jigsaw_dataset.group_bias(pipeline.predict, emb_eval, savefile=(params['predictions'].replace('.pickle', '_'+str(fold_id)+'_raw.pickle')))
             #cur_result['extrinsic_individual'].append(jigsaw_dataset.individual_biases)
             cur_result['extrinsic_classwise'].append(jigsaw_dataset.bias_score) # class-wise GAPs
             cur_result['extrinsic'].append(np.mean(np.abs(jigsaw_dataset.bias_score)))
             cur_result['subgroup_AUC'].append(jigsaw_dataset.subgroup_auc)
             cur_result['BPSN'].append(jigsaw_dataset.bpsn)
             cur_result['BNSP'].append(jigsaw_dataset.bnsp)
-            jigsaw_dataset.group_bias(pipeline.predict, emb_eval_neutral, savefile=(params['predictions'].replace('.pickle', '_neutral.pickle')))
+            jigsaw_dataset.group_bias(pipeline.predict, emb_eval_neutral, savefile=(params['predictions'].replace('.pickle', '_'+str(fold_id)+'_neutral.pickle')))
             cur_result['extrinsic_classwise_neutral'].append(jigsaw_dataset.bias_score) # class-wise GAPs
             cur_result['subgroup_AUC_neutral'].append(jigsaw_dataset.subgroup_auc)
             cur_result['BPSN_neutral'].append(jigsaw_dataset.bpsn)
