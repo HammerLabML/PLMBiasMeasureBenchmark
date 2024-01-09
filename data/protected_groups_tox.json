@@ -2,7 +2,7 @@
 {"race-color": ["white", "black", "asian", "latino"],
 "gender": ["male", "female"], 
 "sexual-orientation": ["heterosexual", "homosexual", "bisexual"], 
-"religion": ["christian", "muslim", "jewish", "buddhist", "hindu"], 
+"religion": ["christian", "muslim", "jewish"], 
 "disability": ["intellectual_or_learning_disability", "physical_disability", "psychiatric_or_mental_illness"]
 }, 
 
