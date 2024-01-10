@@ -651,7 +651,13 @@ class DebiasPipeline():
             
             self.debiaser.fit(emb_per_group)
             emb = self.debiaser.predict(emb, self.debias_k)
+
         
+        average = 'weighted' # multi-label/ single-label multi-class
+        if len(y.shape) == 1 and max(y) == 1:
+            print("binary classification -> use average='binary'")
+            average = 'binary' # single-label, binary
+            
         print("fit clf head...")
         if type(self.learning_rates) == list and len(self.learning_rates) > 1:
             if weights is not None:
@@ -669,7 +675,7 @@ class DebiasPipeline():
                 self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
                 pred = self.clf.predict(emb_val)
                 y_pred = (np.array(pred) >= self.theta).astype(int)
-                score = self.validation_score(y_val, y_pred, average='weighted')
+                score = self.validation_score(y_val, y_pred, average=average)
                 class_wise_recall = recall_score(y_val, y_pred, average=None)
                 if score > best_score and np.min(class_wise_recall) > 0.01 and np.max(class_wise_recall) < 1.0:
                     best_score = score
@@ -687,16 +693,19 @@ class DebiasPipeline():
         print("trained with lr="+str(self.clf.lr)+" which achieved (train+val):")
         pred = self.clf.predict(emb)
         y_pred = (np.array(pred) >= self.theta).astype(int)
-        recall = recall_score(y, y_pred, average='weighted')
-        precision = precision_score(y, y_pred, average='weighted')
-        f1 = f1_score(y, y_pred, average='weighted')
-        class_recall = recall_score(y, y_pred, average=None)
+        recall = recall_score(y, y_pred, average=average)
+        precision = precision_score(y, y_pred, average=average)
+        f1 = f1_score(y, y_pred, average=average)
+
         print("recall\t\t= "+str(recall))
         print("precision\t= "+str(precision))
         print("f1\t\t= "+str(f1))
 
-        print("class-wise recall:")
-        print(class_recall)
+        class_recall = [recall]
+        if len(y_pred.shape) == 1 and max(y_true) == 1:
+            class_recall = recall_score(y, y_pred, average=None)
+            print("class-wise recall:")
+            print(class_recall)
         print()
         print()
         

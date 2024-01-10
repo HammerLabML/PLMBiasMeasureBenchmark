@@ -559,6 +559,10 @@ class JigsawDataset(BiasDataset):
         print("successfully loaded dataset from the filesystem")
         print("this took ", end_time-start_time, "seconds")
         
+        self.label_keys = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
+        self.group_keys = ['asian', 'atheist', 'bisexual', 'black', 'buddhist', 'christian', 'female', 'heterosexual', 'hindu', 'homosexual_gay_or_lesbian', 'intellectual_or_learning_disability', 'jewish', 'latino', 'male', 'muslim', 'other_disability', 'other_gender', 'other_race_or_ethnicity', 'other_religion', 'other_sexual_orientation', 'physical_disability', 'psychiatric_or_mental_illness', 'transgender', 'white']
+        self.default_groups = {'race-color': 'other_race_or_ethnicity', 'gender': 'other_gender', 'sexual_orientation': 'other_sexual_orientation', 'disability': 'other_disability'}
+        
         self.n_folds = n_folds
         self.labels = sel_labels
         self.groups_by_bias_types = {bt: groups_by_bias_types[bt]+['other'] for bt in bias_types}
@@ -597,8 +601,6 @@ class JigsawDataset(BiasDataset):
         self.bpsn = []
         self.bnsp = []
 
-        self.label_keys = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
-        self.group_keys = ['asian', 'atheist', 'bisexual', 'black', 'buddhist', 'christian', 'female', 'heterosexual', 'hindu', 'homosexual_gay_or_lesbian', 'intellectual_or_learning_disability', 'jewish', 'latino', 'male', 'muslim', 'other_disability', 'other_gender', 'other_race_or_ethnicity', 'other_religion', 'other_sexual_orientation', 'physical_disability', 'psychiatric_or_mental_illness', 'transgender', 'white']   
         
     def sel_attributes(self, bias_type: str) -> bool:
         if not bias_type in self.bias_types:
@@ -645,7 +647,8 @@ class JigsawDataset(BiasDataset):
     def translate_group_name(self, group):
         if group == 'homosexual':
             return 'homosexual_gay_or_lesbian'
-        
+        if 'other' in group:
+            return 'other'
         # 'disability': ['intellectual_or_learning_disability', 'physical_disability', 'psychiatric_or_mental_illness', 'other_disability']
         else:
             return group
@@ -658,33 +661,36 @@ class JigsawDataset(BiasDataset):
         for i, lbl in enumerate(self.labels):
             if sample[lbl] > 0.66: # 2/3 majority vote
                 label[i] = 1
-            elif sample[lbl] > 0.33: # uncertain if toxic or not -> remove
-                return None
+            elif sample[lbl] > 0.33:
+                label[i] = -1 # uncertain -> should be removed later
+
+        if np.min(label) < 0:
+            return None # ambiguous label
                 
         bias_types = []
         found_groups = []
+        uncertain_groups = []
         for bias_type, groups in self.groups_by_bias_types.items():
-            for group in groups:
+            if bias_type not in self.default_groups.keys():
+                continue
+            for group in groups+[self.default_groups[bias_type]]:
                 group_jigsaw = self.translate_group_name(group)
                 if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.66: # 2/3 majority vote of annotators
                     bias_types.append(bias_type)
                     found_groups.append(self.groups_by_bias_types[bias_type].index(group))
-            #if bias_types.count(bias_type) > 1:
-            #    print(sample)
-            
-        if len(found_groups) == 0:
-            if len(bias_types) == 0:
-                bias_types = ['none']
-                found_groups = [0]
-            else:
-                self.groups_by_bias_types[bias_types[0]].index('other')
+                if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.33: # uncertain
+                    uncertain_groups.append(self.groups_by_bias_types[bias_type].index(group))
+            # TODO explicitly check for "other" groups
+        if len(found_groups) == 0 and len(uncertain_groups) == 0:
+            assert len(bias_types) == 0
+            bias_types = ['none']
+            found_groups = [0]
+            return None
+        elif len(found_groups) == 0 and len(uncertain_groups) > 0:
             return None
         
         if len(found_groups) > 1:
             return None
-        
-        #if np.sum(label) == 0:
-        #    return None
         
         # TODO: can we get actual counterfactuals?
         new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 

@@ -93,7 +93,7 @@ def run_clf_experiments(exp_config: dict):
                 for sample in jigsaw_dataset.data:
                     if sample['group'] < len(jigsaw_dataset.sel_groups)-1:
                         sample_dist[sample['label'][0]][jigsaw_dataset.sel_groups[sample['group']]] += 1
-                print("single,binary label sample dist: ")
+                print("single,binary label (%s) sample dist: " % jigsaw_dataset.labels[0])
                 print(sample_dist)
             else:
                 # multi label
