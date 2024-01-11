@@ -19,6 +19,7 @@ import numpy as np
 import math
 import pickle
 import time
+from tqdm import tqdm
 from sklearn.utils import resample as sklearn_resample
 
 def resample(X: np.ndarray, y: np.ndarray, groups: list, add_noise=False):
@@ -558,10 +559,11 @@ class JigsawDataset(BiasDataset):
         end_time = time.time()
         print("successfully loaded dataset from the filesystem")
         print("this took ", end_time-start_time, "seconds")
+
         
         self.label_keys = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
         self.group_keys = ['asian', 'atheist', 'bisexual', 'black', 'buddhist', 'christian', 'female', 'heterosexual', 'hindu', 'homosexual_gay_or_lesbian', 'intellectual_or_learning_disability', 'jewish', 'latino', 'male', 'muslim', 'other_disability', 'other_gender', 'other_race_or_ethnicity', 'other_religion', 'other_sexual_orientation', 'physical_disability', 'psychiatric_or_mental_illness', 'transgender', 'white']
-        self.default_groups = {'race-color': 'other_race_or_ethnicity', 'gender': 'other_gender', 'sexual_orientation': 'other_sexual_orientation', 'disability': 'other_disability'}
+        self.default_groups = {'race-color': 'other_race_or_ethnicity', 'gender': 'other_gender', 'sexual_orientation': 'other_sexual_orientation', 'disability': 'other_disability', 'religion': 'other_religion'}
         
         self.n_folds = n_folds
         self.labels = sel_labels
@@ -678,41 +680,57 @@ class JigsawDataset(BiasDataset):
                 if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.66: # 2/3 majority vote of annotators
                     bias_types.append(bias_type)
                     found_groups.append(self.groups_by_bias_types[bias_type].index(group))
-                if group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.33: # uncertain
+                elif group_jigsaw in sample.keys() and sample[group_jigsaw] > 0.33: # uncertain
                     uncertain_groups.append(self.groups_by_bias_types[bias_type].index(group))
-            # TODO explicitly check for "other" groups
-        if len(found_groups) == 0 and len(uncertain_groups) == 0:
+
+        if len(uncertain_groups) > 0:
+            if len(found_groups) == 0:
+                self.uncertain_group += 1
+            return None
+        
+        if len(found_groups) > 1:
+            self.many_groups += 1
+            return None
+        if len(found_groups) == 0:
+            self.no_group += 1
             assert len(bias_types) == 0
             bias_types = ['none']
             found_groups = [0]
             return None
-        elif len(found_groups) == 0 and len(uncertain_groups) > 0:
-            return None
-        
-        if len(found_groups) > 1:
-            return None
-        
+            
         # TODO: can we get actual counterfactuals?
         new_sample = {'text': sample['comment_text'], 'counterfactual': sample['comment_text'], 'label': label, 
                           'bias_type': bias_types[0], 'group': found_groups[0]}
         return new_sample
         
     def transform_data(self, data):
+        self.uncertain_group = 0
+        self.many_groups = 0
+        self.no_group = 0
+        
         print(self.labels)
         self.data = []
-        for sample in data['train']:
+        count_data = 0
+        for sample in tqdm(data['train']):
             new_sample = self.transform_sample(sample)
             if new_sample is not None:
                 self.data.append(new_sample)
-        for sample in data['test_private_leaderboard']:
+            count_data += 1
+        for sample in tqdm(data['test_private_leaderboard']):
             new_sample = self.transform_sample(sample)
             if new_sample is not None:
                 self.data.append(new_sample)
-        for sample in data['test_public_leaderboard']:
+            count_data += 1
+        for sample in tqdm(data['test_public_leaderboard']):
             new_sample = self.transform_sample(sample)
             if new_sample is not None:
                 self.data.append(new_sample)
+            count_data += 1
         self.data = shuffle(self.data, random_state=0)
+
+        print("rejected %s samples because of uncertain group labels" % self.uncertain_group)
+        print("rejected %s samples because of multiple group labels" % self.many_groups)
+        print("rejected %s samples because no (certain) group label found" % self.no_group)
         
         idx = 0
         for sample in self.data:
