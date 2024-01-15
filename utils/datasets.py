@@ -272,10 +272,12 @@ class CrowSPairsDataset(BiasDataset):
 def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     assert len(y_pred.shape) == 1
     assert y_pred.shape == y_true.shape
+    assert np.min(y_pred) != np.max(y_pred)
     
     n_groups = np.max(groups)+1
     n_samples = y_pred.shape[0]
     n_classes = np.max(y_pred)+1
+
     
     gaps = []
     for c in range(n_classes):
@@ -801,6 +803,8 @@ class JigsawDataset(BiasDataset):
         gaps = gap_score_single_label(y_pred.flatten(), y_true.flatten(), groups)
         self.bias_score = gaps # class-wise gaps
         print("GAPs:", self.bias_score)
+        print("pos pred:", np.sum(y_pred))
+        print("pos true:", np.sum(y_true))
         
         # AUC
         self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
