@@ -677,6 +677,7 @@ class DebiasPipeline():
                 self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
                 pred = self.clf.predict(emb_val)
                 y_pred = (np.array(pred) >= self.theta).astype(int)
+                
                 score = self.validation_score(y_val, y_pred, average=average)
                 class_wise_recall = recall_score(y_val, y_pred, average=None)
                 if score > best_score and np.min(class_wise_recall) > 0.01 and np.max(class_wise_recall) < 1.0:
@@ -692,12 +693,12 @@ class DebiasPipeline():
                 self.clf.set_lr(self.learning_rates[0])
             self.clf.fit(emb, y, epochs=epochs)
         
-        print("trained with lr="+str(self.clf.lr)+" which achieved (train+val):")
-        pred = self.clf.predict(emb)
+        print("trained with lr="+str(self.clf.lr)+" which achieved (val):")
+        pred = self.clf.predict(emb_val)
         y_pred = (np.array(pred) >= self.theta).astype(int)
-        recall = recall_score(y, y_pred, average=average)
-        precision = precision_score(y, y_pred, average=average)
-        f1 = f1_score(y, y_pred, average=average)
+        recall = recall_score(y_val, y_pred, average=average)
+        precision = precision_score(y_val, y_pred, average=average)
+        f1 = f1_score(y_val, y_pred, average=average)
 
         print("recall\t\t= "+str(recall))
         print("precision\t= "+str(precision))
