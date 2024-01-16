@@ -16,6 +16,7 @@ from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_sc
 from transformers import AutoModelForMaskedLM, AutoTokenizer
 from unmasking_bias import get_token_diffs
 from transformers.tokenization_utils_base import BatchEncoding
+import copy
 
 
 optimizer = {'RMSprop': torch.optim.RMSprop, 'Adam': torch.optim.Adam}
@@ -618,6 +619,7 @@ class DebiasPipeline():
     
     def __init__(self, parameters: dict, head: torch.nn.Module, debias = False, validation_score='f1', class_weights=None):
         self.clf = CustomModel(parameters, head, class_weights=class_weights)
+        self.untrained_clf = copy.deepcopy(self.clf)
         self.debiaser = None
         self.debias_k = None
         self.learning_rates = parameters['lr']
@@ -673,12 +675,15 @@ class DebiasPipeline():
             print("optimize learning rate...")
             for lr in self.learning_rates:
                 print("lr=",lr)
+                self.clf = copy.deepcopy(self.untrained_clf)
                 self.clf.set_lr(lr)
                 self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
                 pred = self.clf.predict(emb_val)
                 y_pred = (np.array(pred) >= self.theta).astype(int)
                 
                 score = self.validation_score(y_val, y_pred, average=average)
+                print("y pred val ratio: %s" % (np.sum(y_pred)/len(y_pred)))
+                print(score)
                 class_wise_recall = recall_score(y_val, y_pred, average=None)
                 if score > best_score and np.min(class_wise_recall) > 0.01 and np.max(class_wise_recall) < 1.0:
                     best_score = score
@@ -689,6 +694,7 @@ class DebiasPipeline():
                 self.clf.fit(emb_train, y_train, epochs=epochs, weights=w_train)
             
         else:
+            self.clf = copy.deepcopy(self.untrained_clf)
             if type(self.learning_rates) == list:
                 self.clf.set_lr(self.learning_rates[0])
             self.clf.fit(emb, y, epochs=epochs)
