@@ -665,6 +665,8 @@ class DebiasPipeline():
             else:
                 w_train = None
                 emb_train, emb_val, y_train, y_val = train_test_split(emb, y, test_size=0.1, random_state=0)
+            print("y_train ratio: %s" % (np.sum(y_train)/len(y_train)))
+            print("y_val ratio: %s" % (np.sum(y_val)/len(y_val)))
                 
             best_score = 0
             best_lr = self.learning_rates[0]

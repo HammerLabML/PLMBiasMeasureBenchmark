@@ -272,7 +272,7 @@ class CrowSPairsDataset(BiasDataset):
 def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     assert len(y_pred.shape) == 1
     assert y_pred.shape == y_true.shape
-    assert np.min(y_pred) != np.max(y_pred)
+    assert np.min(y_pred) != np.max(y_pred), "y pred contains only one class: "+str(np.min(y_pred))
     
     n_groups = np.max(groups)+1
     n_samples = y_pred.shape[0]
@@ -795,6 +795,9 @@ class JigsawDataset(BiasDataset):
         
         y_pred = prediction_wrapper(emb)
         y_prob = prediction_wrapper(emb, as_proba=True)
+        
+        print("y_true ratio: %s" % (np.sum(y_true)/len(y_true)))
+        print("y_pred ratio: %s" % (np.sum(y_pred)/len(y_pred)))
         
         with open(savefile, 'wb') as handle:
             pickle.dump(y_prob, handle)
