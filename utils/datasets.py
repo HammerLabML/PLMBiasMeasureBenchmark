@@ -326,10 +326,10 @@ def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray
     return gaps
 
 def tp_gap_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
-    gap_score_one_hot(y_pred, y_true, groups, target_label=1)
+    return gap_score_one_hot(y_pred, y_true, groups, target_label=1)
 
 def tn_gap_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
-    gap_score_one_hot(y_pred, y_true, groups, target_label=0)
+    return gap_score_one_hot(y_pred, y_true, groups, target_label=0)
 
 
 def compute_AUC(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
