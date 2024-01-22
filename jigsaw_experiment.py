@@ -267,8 +267,7 @@ def run_clf_experiments(exp_config: dict):
                     recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
 
                 # make sure that predictions make sense
-                pred = self.clf.predict(emb_eval)
-                y_pred = (np.array(pred) >= self.theta).astype(int)
+                y_pred = pipeline.predict(emb_eval)
                 recall = recall_score(y_val, y_pred, average=average)
                 precision = precision_score(y_val, y_pred, average=average)
                 f1 = f1_score(y_val, y_pred, average=average)
