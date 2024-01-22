@@ -712,7 +712,7 @@ class DebiasPipeline():
 
         class_recall = [recall]
         if len(y_pred.shape) == 1 and max(y_true) == 1:
-            class_recall = recall_score(y, y_pred, average=None)
+            class_recall = recall_score(y_val, y_pred, average=None)
             print("class-wise recall:")
             print(class_recall)
         print()

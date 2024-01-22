@@ -246,6 +246,8 @@ def run_clf_experiments(exp_config: dict):
             emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
             #emb_eval_cf = np.asarray([cf_emb_all[i] for i in eval_ids])
             emb_eval_neutral = np.asarray([neutral_emb_all[i] for i in eval_ids])
+            target_label = [labels[i] for i in eval_ids]
+            target_groups = [group_label[i] for i in eval_ids]
 
             average = 'weighted' # multi-label/ single-label multi-class
             if len(y.shape) == 1 and max(y) == 1:
@@ -269,12 +271,12 @@ def run_clf_experiments(exp_config: dict):
 
                 # make sure that predictions make sense
                 y_pred = pipeline.predict(emb_eval)
-                recall = recall_score(y_val, y_pred, average=average)
-                precision = precision_score(y_val, y_pred, average=average)
-                f1 = f1_score(y_val, y_pred, average=average)
+                recall = recall_score(target_label, y_pred, average=average)
+                precision = precision_score(target_label, y_pred, average=average)
+                f1 = f1_score(target_label, y_pred, average=average)
                 class_recall = [recall]
-                if len(y_pred.shape) == 1 and max(y_true) == 1:
-                    class_recall = recall_score(y, y_pred, average=None)
+                if len(y_pred.shape) == 1 and max(target_label) == 1:
+                    class_recall = recall_score(target_label, y_pred, average=None)
                     print("class-wise recall:")
 
                 cur_result['recall'] = recall
@@ -315,8 +317,6 @@ def run_clf_experiments(exp_config: dict):
                 emb_eval = pipeline.debiaser.predict(np.asarray(emb_eval), pipeline.debias_k)
                 #emb_eval_cf = pipeline.debiaser.predict(np.asarray(emb_eval_cf), pipeline.debias_k)
                 emb_eval_neutral = pipeline.debiaser.predict(np.asarray(emb_eval_neutral), pipeline.debias_k)
-            target_label = [labels[i] for i in eval_ids]
-            target_groups = [group_label[i] for i in eval_ids]
             target_emb_per_group = []
             #target_emb_cf_per_group = []
             target_emb_neutral_per_group = []
