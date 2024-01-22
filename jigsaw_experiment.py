@@ -287,7 +287,7 @@ def run_clf_experiments(exp_config: dict):
 
                 if i < n_tries-1:
                     print("training was not successful, try again")
-                elif if == n_tries-1:
+                elif i == n_tries-1:
                     print("training was not successful, but max number of tries reached")
             
             
