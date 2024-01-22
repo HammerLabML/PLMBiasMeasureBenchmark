@@ -239,30 +239,61 @@ def run_clf_experiments(exp_config: dict):
                 emb, y, groups = resample(emb, y, groups, add_noise=('noise' in params['clf_debias']))
             print("y shape")
             print(y.shape)
-            # fit the whole pipeline
-            if params['clf_debias'] == 'weights':
-                # get sample weights
-                sample_weights = []
-                for sample in jigsaw_dataset.train_data:
-                    cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
-                    group = jigsaw_dataset.sel_groups[sample['group']]
-                    weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
-                    sample_weights.append(np.max(weights))
-                recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
-            else:
-                recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
-            
-            cur_result['recall'] = recall
-            cur_result['precision'] = precision
-            cur_result['f1'] = f1
-            cur_result['class_recall'] = class_recall
-            
-            # compute the bias
-            print("compute extrinsic biases...")
+
+            # eval embeddings
             eval_ids = [sample['id'] for sample in jigsaw_dataset.eval_data]
             emb_eval = np.asarray([target_emb_all[i] for i in eval_ids])
             #emb_eval_cf = np.asarray([cf_emb_all[i] for i in eval_ids])
             emb_eval_neutral = np.asarray([neutral_emb_all[i] for i in eval_ids])
+
+            average = 'weighted' # multi-label/ single-label multi-class
+            if len(y.shape) == 1 and max(y) == 1:
+                print("binary classification -> use average='binary'")
+                average = 'binary' # single-label, binary
+
+            n_tries = 5
+            for i in range(n_tries): # try training multiple times if we get uniform predictions (only 0s or 1s)
+                # fit the whole pipeline
+                if params['clf_debias'] == 'weights':
+                    # get sample weights
+                    sample_weights = []
+                    for sample in jigsaw_dataset.train_data:
+                        cur_labels = [jigsaw_dataset.labels[i] for i in range(len(sample['label'])) if sample['label'][i] == 1]
+                        group = jigsaw_dataset.sel_groups[sample['group']]
+                        weights = [class_gender_weights[group][lbl]*100 for lbl in cur_labels]
+                        sample_weights.append(np.max(weights))
+                    recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups, weights=sample_weights)
+                else:
+                    recall, precision, f1, class_recall = pipeline.fit(emb, y, epochs=params['epochs'], optimize_theta=True, group_label=groups)
+
+                # make sure that predictions make sense
+                pred = self.clf.predict(emb_eval)
+                y_pred = (np.array(pred) >= self.theta).astype(int)
+                recall = recall_score(y_val, y_pred, average=average)
+                precision = precision_score(y_val, y_pred, average=average)
+                f1 = f1_score(y_val, y_pred, average=average)
+                class_recall = [recall]
+                if len(y_pred.shape) == 1 and max(y_true) == 1:
+                    class_recall = recall_score(y, y_pred, average=None)
+                    print("class-wise recall:")
+
+                cur_result['recall'] = recall
+                cur_result['precision'] = precision
+                cur_result['f1'] = f1
+                cur_result['class_recall'] = class_recall
+
+                if not np.min(y_pred) == np.max(y_pred):
+                    break # we got a proper classifier
+
+                if i < n_tries-1:
+                    print("training was not successful, try again")
+                elif if == n_tries-1:
+                    print("training was not successful, but max number of tries reached")
+            
+            
+            
+            # compute the bias
+            print("compute extrinsic biases...")
             #jigsaw_dataset.individual_bias(pipeline.predict, emb_eval, emb_eval_cf, , savefile=(params['predictions'].replace('.pickle', '_cf.pickle')))
             jigsaw_dataset.group_bias(pipeline.predict, emb_eval, savefile=(params['predictions'].replace('.pickle', '_'+str(fold_id)+'_raw.pickle')))
             #cur_result['extrinsic_individual'].append(jigsaw_dataset.individual_biases)
