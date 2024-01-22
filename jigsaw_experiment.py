@@ -10,6 +10,7 @@ import sys
 import getopt
 
 from embedding import BertHuggingface
+from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, MAC, normalize, cossim, EmbSetList, EmbSet, GeometricBias
 from utils import CLFHead, SimpleCLFHead, CustomModel, JigsawDataset, BiosDataset, DebiasPipeline, upsample_defining_embeddings, WordVectorWrapper, resample
 
