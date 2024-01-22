@@ -225,8 +225,10 @@ class CrowSPairsDataset(BiasDataset):
             neutral_samples.append(masked_sent)
         
         group_labels = [sample['group'] if sample['label'] == 0 else sample['group_cf'] for sample in self.sel_data]
+        group_cf_labels = [sample['group_cf'] if sample['label'] == 0 else sample['group'] for sample in self.sel_data]
         group_ids = [self.groups_by_bias_types[self.sel_bias_type].index(label) for label in group_labels]
-        return neutral_samples, group_ids
+        group_cf_ids = [self.groups_by_bias_types[self.sel_bias_type].index(label) for label in group_cf_labels]
+        return neutral_samples, group_ids, group_cf_ids
         
     def compute_PLL(self, model_name: str, pll_compare_sent_func: Callable):
         if self.pll_cur_bias_type == self.sel_bias_type and len(self.pll_more) == len(self.sel_data) and self.last_mlm_name == model_name:

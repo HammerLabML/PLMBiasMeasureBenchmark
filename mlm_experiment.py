@@ -38,7 +38,32 @@ with open('data/protected_groups.json', 'r') as f:
 groups_by_bias_types = pg_config['groups_by_bias_types']
 terms_by_groups = pg_config['terms_by_groups']
 
-cosine_scores = {'SAME': SAME, 'WEAT': WEAT, 'gWEAT': GeneralizedWEAT, 'DirectBias': DirectBias, 'MAC': MAC}    
+cosine_scores = {'SAME': SAME, 'WEAT': WEAT, 'gWEAT': GeneralizedWEAT, 'DirectBias': DirectBias, 'MAC': MAC}
+
+def compute_case_sensitive_cosine_scores(group_ids, group_cf_ids, attr_emb, target_emb, scores):
+    assert len(group_ids) == len(target_emb)
+    n_samples = len(group_ids)
+    n_groups = 2
+
+    results = {score: [] for score in scores if not score == 'gWEAT'} # gweat doesn't make sense bc all cases are binary
+
+    for i in range(n_samples):
+        group_id = group_ids[i]
+        cf_id = group_cf_ids[i]
+        cur_attr_emb = [attr_emb[group_id], attr_emb[cf_id]]
+        for score in results.keys():
+            if score == 'DirectBias':
+                cur_score = cosine_scores[score](k=n_groups-1) # have the same dimension of bias space as SAME
+            else:
+                cur_score = cosine_scores[score]()
+            cur_score.define_bias_space(cur_attr_emb)
+
+            if score == 'SAME':
+                individual_biases = cur_score.signed_individual_bias(target_emb[i])
+            else:
+                individual_biases = cur_score.individual_bias(target_emb[i])
+            results[score].append(individual_biases)
+    return results
 
 def run_mlm_experiments(exp_config: dict):
     with open(exp_config['batch_size_lookup'], 'r') as f:
@@ -110,20 +135,25 @@ def run_mlm_experiments(exp_config: dict):
 
         attr_emb = [pipeline.embed(attr, average='mean') for attr in attributes]
 
-        targets, group_label = csp_dataset.get_neutral_samples_by_masking(pipeline.tokenizer)
+        # group label and group_cf_ids are both group ids
+        targets, group_label, group_cf_ids = csp_dataset.get_neutral_samples_by_masking(pipeline.tokenizer)
         assert len(set(group_label)) == n_groups
 
         target_emb = pipeline.embed(targets, average='mean')
         if params['debias']:
             print("apply debiasing before computing cosine scores")
             target_emb2 = pipeline.debiaser.predict(np.asarray(target_emb), pipeline.debias_k)
-            print("debias failed: ", target_emb2 == target_emb)
+            print("debiased emb == original emb: ", target_emb2 == target_emb)
             target_emb = target_emb2
 
         # sorted by stereotypical group
         target_emb_per_group = []
         for group in range(max(group_label)+1):
             target_emb_per_group.append([target_emb[i] for i in range(len(group_label)) if group_label[i] == group])
+
+        cs_results = compute_case_sensitive_cosine_scores(group_label, group_cf_ids, attr_emb, target_emb, params['bias_scores'])
+        for score, res in cs_results.items():
+            cur_result.update({score+'_cs': res})
 
         for score in params['bias_scores']:
             if score == 'WEAT' and n_groups > 2:
