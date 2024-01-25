@@ -41,6 +41,18 @@
 "xlnet-base-cased": 32,
 "xlnet-large-cased": 16,
 "distilbert-base-multilingual-cased": 32,
-"google/electra-small-generator": 64, 
-"facebook/xlm-v-base": 8
+"google/electra-small-generator": 64,
+"facebook/xlm-v-base": 8,
+"microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext": 32, 
+"microsoft/deberta-v3-base": 64, 
+"microsoft/deberta-v3-small": 64, 
+"microsoft/deberta-v3-large": 16,
+"microsoft/deberta-v2-xlarge": 8,
+"microsoft/mdeberta-v3-base": 64,
+"microsoft/deberta-base": 64,
+"distilbert-base-cased": 64,
+"emilyalsentzer/Bio_ClinicalBERT": 64,
+"yikuan8/Clinical-Longformer": 64,
+"nlpaueb/legal-bert-base-uncased": 64,
+"bert-base-cased": 64
 }
