@@ -358,7 +358,7 @@ class MLMPipeline():
         
         
     def split_mlm(self, model: AutoModelForMaskedLM):
-        if "architectures" in model.config.__dict__.keys():
+        if "architectures" in model.config.__dict__.keys() and model.config.architectures is not None:
             assert len( model.config.architectures) == 1
             arch = model.config.architectures[0]
             if arch in ['BertForMaskedLM', 'BertForPreTraining']:
