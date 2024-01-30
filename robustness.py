@@ -120,7 +120,7 @@ def get_target_emb_per_group(target_emb, target_label):
 def test_target_robustness(res_by_model, bias_types=['gender'], models=['bert-base-uncased', 'roberta-base'], n_permutations=100, factors=[0.5, 0.3, 0.1, 0.05, 0.01]):    
     for j, model in enumerate(models):
         if 'done' in res_by_model[model].keys():
-            print("skip %s because we already have results", % model)
+            print("skip %s because we already have results" % model)
             continue
         batch_size = 1
         if model in batch_size_lookup.keys():
