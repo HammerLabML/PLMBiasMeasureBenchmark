@@ -58,7 +58,7 @@ with open('data/batch_size_lookup_A40.json', 'r') as f:
 
 titles = ["architect", "psychologist", "professor", "photographer", "journalist", "attorney", "teacher", "dentist", "*software architect", "*writer", "surgeon", "physician", "nurse", "*researcher"]
 titles = [title.replace('*','') for title in titles]
-bios_dataset = BiosDataset(n_folds=5, sel_labels=titles, bios_file="../MeasuringFairnessWithBiasedData/data/BIOS_REVIEWED.pkl")
+bios_dataset = BiosDataset(n_folds=5, sel_labels=titles, bios_file="../datasets/BIOS_REVIEWED.pkl")
 texts = [sample['text'] for sample in bios_dataset.sel_data]
 texts_debiased, _, _ = bios_dataset.get_neutral_samples_by_masking(attributes)
 y = [sample['label'] for sample in bios_dataset.sel_data]
