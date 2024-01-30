@@ -177,7 +177,7 @@ bias_types = ['gender']
 factors=[0.01, 0.03, 0.05, 0.1, 0.2]
 models=["albert-large-v2", "google/electra-base-generator", "google/electra-large-generator", "bert-base-multilingual-uncased", "GroNLP/hateBERT", "Twitter/twhin-bert-base", "medicalai/ClinicalBERT", "albert-xlarge-v2", "bert-large-uncased-whole-word-masking", "abhi1nandy2/Bible-roberta-base", "distilbert-base-uncased-finetuned-sst-2-english", "gpt2", "openai-gpt", "xlnet-base-cased", "bert-base-uncased", "bert-large-uncased", "distilbert-base-uncased", "roberta-base", "roberta-large", "distilroberta-base", "xlm-roberta-base", "albert-base-v2"]
 res_by_model = {model: {score: {'bios_subset': {factor: [] for factor in factors}, 'titles/bios': {factor: [] for factor in factors}} for score in cosine_scores.keys()} for model in models}
-res_by_model = test_target_robustness(results, bias_types=bias_types, models=models, n_permutations=50, factors=factors)
+res_by_model = test_target_robustness(res_by_model, bias_types=bias_types, models=models, n_permutations=50, factors=factors)
 
 with open('robustness_results.pickle','wb') as handle:
     pickle.dump(res_by_model, handle)
