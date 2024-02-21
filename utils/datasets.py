@@ -1,26 +1,25 @@
+import numpy as np
+import math
+import pickle
+import time
+from tqdm import tqdm
+import os
+import itertools
+from collections.abc import Callable
+import pandas as pd
+
 import difflib
 import string
 
-import os
-import datasets
-import pandas as pd
 from datasets import load_dataset
-
-from embedding import BertHuggingfaceMLM
 from transformers import PreTrainedTokenizer
 
 from unmasking_bias import get_token_diffs
 
 from sklearn.utils import shuffle
 from sklearn.metrics import roc_auc_score
-import itertools
-from collections.abc import Callable
-import numpy as np
-import math
-import pickle
-import time
-from tqdm import tqdm
 from sklearn.utils import resample as sklearn_resample
+
 
 def resample(X: np.ndarray, y: np.ndarray, groups: list, add_noise=False):
     assert (len(X) == len(y) and len(y) == len(groups)), "inconsistent number of samples for X,y,groups: "+str(len(X))+","+str(len(y))+","+str(len(groups))
@@ -58,9 +57,10 @@ def resample(X: np.ndarray, y: np.ndarray, groups: list, add_noise=False):
     return X, y, groups
     
 
-class BiasDataset():
+class BiasDataset:
     
-    def __init__(self):
+    def __init__(self, random_state=0):
+        self.random_state = random_state
         self.data = []
         self.bias_types = []
         self.groups_by_bias_types = {}
@@ -71,7 +71,7 @@ class BiasDataset():
         self.bias_score = None # or class-wise?
         
     def sel_attributes(self, bias_type: str) -> bool:
-        if not bias_type in self.bias_types:
+        if bias_type not in self.bias_types:
             print("bias type", bias_type, "is not supported for this dataset")
             return False
         
@@ -91,7 +91,7 @@ class BiasDataset():
     def individual_bias(self, sample: dict):
         pass
         
-    def group_bias(self):
+    def group_bias(self, prediction_wrapper: Callable, emb, savefile):
         pass
         
     def compute_invidivual_extrinsic_biases(self):
@@ -99,13 +99,10 @@ class BiasDataset():
         for sample in self.sel_data:
             score = self.individual_bias(sample)
             self.individual_biases.append(score)
-            
-            
-################################################
-###########    CrowSPairs dataset    ###########
-################################################
 
-PUNCTUATION = string.punctuation.replace('-','')
+
+PUNCTUATION = string.punctuation.replace('-', '')
+
 
 def get_group_label(modified_terms: list, bias_type: str, groups_by_bias_types: dict, terms_by_groups: dict):
     if not bias_type in groups_by_bias_types.keys():
@@ -129,8 +126,10 @@ def get_group_label(modified_terms: list, bias_type: str, groups_by_bias_types: 
     
     return group_lbl, list(set(missing))
 
+
 def simplify_text(text: str):
     return text.strip().lower().translate(str.maketrans('', '', PUNCTUATION))
+
 
 def get_diff(seq1, seq2):
     seq1 = seq1.split(' ')
@@ -190,8 +189,6 @@ class CrowSPairsDataset(BiasDataset):
                           'bias_type': bias_type, 'group': sample['group_more'], 'group_cf': sample['group_less']}
             return new_sample
         else:
-            #if bias_type == 'religion':
-            #    print(sample['terms_missing_more'], sample['terms_missing_less'])
             return None
         
     def get_neutral_samples_by_masking(self, tokenizer: PreTrainedTokenizer):
@@ -263,13 +260,7 @@ class CrowSPairsDataset(BiasDataset):
                 stereo_more_likely.append(0)
         
         self.bias_score = sum(stereo_more_likely)/len(stereo_more_likely)
-        
 
-        
-        
-################################################
-########        CLF Bias Measures       ########
-################################################
 
 def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     assert len(y_pred.shape) == 1
@@ -301,6 +292,7 @@ def gap_score_single_label(y_pred: np.ndarray, y_true: np.ndarray, groups: np.nd
             gaps.append(np.std(group_tp))
     return gaps
 
+
 # target label 1 -> TP, target label 0 -> TN
 def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray, target_label=1):
     assert len(y_pred.shape) == 2
@@ -327,8 +319,10 @@ def gap_score_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray
             gaps.append(np.var(group_tp))
     return gaps
 
+
 def tp_gap_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     return gap_score_one_hot(y_pred, y_true, groups, target_label=1)
+
 
 def tn_gap_one_hot(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
     return gap_score_one_hot(y_pred, y_true, groups, target_label=0)
@@ -381,14 +375,8 @@ def compute_AUC(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
         class_bnsps.append(np.var(bpsns))
     
     return class_aucs, class_bpsns, class_bnsps
-            
-            
-################################################
-###########       BIOS dataset       ###########
-################################################
 
-        
-        
+
 class BiosDataset(BiasDataset):
     
     def __init__(self, n_folds: int, sel_labels: list, bios_file: str):
@@ -423,13 +411,13 @@ class BiosDataset(BiasDataset):
     def titles_to_one_hot(self, titles: list):
         one_hot = np.zeros(len(self.labels))
         for title in titles:
-            if not title in self.labels:
+            if title not in self.labels:
                 continue
             one_hot[self.labels.index(title)] = 1
         return one_hot
             
     def transform_data(self, data):
-        data = shuffle(data, random_state=0)
+        data = shuffle(data, random_state=self.random_state)
         self.data = []
         idx = 0
         for sample in data:
@@ -450,15 +438,15 @@ class BiosDataset(BiasDataset):
             idx += 1
             
     def sel_attributes(self, bias_type: str) -> bool:
-        if not bias_type in self.bias_types:
+        if bias_type not in self.bias_types:
             print("bias type", bias_type, "is not supported for this dataset")
             return False
         # only bias type was already selected in __init__
         return True
     
     def set_data_split(self, fold_id):
-        assert fold_id >= 0 and fold_id < self.n_folds
-        
+        assert 0 <= fold_id < self.n_folds
+
         self.eval_data = self.data_folds[fold_id]
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
         
@@ -505,7 +493,6 @@ class BiosDataset(BiasDataset):
         
         y_true = np.asarray([sample['label'] for sample in self.eval_data])
         groups = np.asarray([sample['group'] for sample in self.eval_data])
-        #sent = [sample['text'] for sample in self.eval_data]
         
         y_pred = prediction_wrapper(emb, as_proba=True)
         y_pred_cf = prediction_wrapper(emb_cf, as_proba=True)
@@ -520,10 +507,6 @@ class BiosDataset(BiasDataset):
             y_true_i = y_true[i,:]
             bias = np.sum(np.abs(y_pred_cf_i[y_true_i==1]-y_pred_i[y_true_i==1]))
             self.individual_biases.append(bias)
-            
-        # percentage of cases where the counterfactual influences a positive prediction (for binary predictions)
-        #bias = np.sum(np.abs(y_pred[y_true==1]-y_pred_cf[y_true==1])) / np.sum(y_true)
-        
     
     def group_bias(self, prediction_wrapper: Callable, emb, savefile):
         assert len(emb) == len(self.eval_data)
@@ -546,14 +529,12 @@ class BiosDataset(BiasDataset):
         #print("subgroup AUC:", self.subgroup_auc)
         #print("BPSN:", self.bpsn)
         #print("BNSP:", self.bnsp)
-        
-        
+
 
 #################################################
 #########    Jigsaw toxicity dataset    #########
 #################################################
-        
-        
+
 class JigsawDataset(BiasDataset):
     
     def __init__(self, n_folds: int, dataset_dir: str, dataset_checkpoint: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
@@ -607,7 +588,6 @@ class JigsawDataset(BiasDataset):
         self.bpsn = []
         self.bnsp = []
 
-        
     def sel_attributes(self, bias_type: str) -> bool:
         if not bias_type in self.bias_types:
             print("bias type", bias_type, "is not supported for this dataset")
@@ -619,9 +599,7 @@ class JigsawDataset(BiasDataset):
         return True
     
     def set_data_split(self, fold_id):
-        assert fold_id >= 0 and fold_id < self.n_folds
-        
-        #self.eval_data = self.data_folds[fold_id]
+        assert 0 <= fold_id < self.n_folds
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
         
         # filter eval data for current bias attribute
@@ -647,15 +625,11 @@ class JigsawDataset(BiasDataset):
         print("got ", len(self.data_folds[fold_id]), " samples in the eval split")
         print(len(self.eval_data), " of these have the selected bias type and will be used for evaluation")
         
-        #print("got ", len(self.train_data), "train samples")
-        #print("max train id is: ", np.max([sample['id'] for sample in self.train_data]))
-        
     def translate_group_name(self, group):
         if group == 'homosexual':
             return 'homosexual_gay_or_lesbian'
         if 'other' in group:
             return 'other'
-        # 'disability': ['intellectual_or_learning_disability', 'physical_disability', 'psychiatric_or_mental_illness', 'other_disability']
         else:
             return group
         
@@ -730,7 +704,7 @@ class JigsawDataset(BiasDataset):
             if new_sample is not None:
                 self.data.append(new_sample)
             count_data += 1
-        self.data = shuffle(self.data, random_state=0)
+        self.data = shuffle(self.data, random_state=self.random_state)
 
         print("rejected %s samples because of uncertain group labels" % self.uncertain_group)
         print("rejected %s samples because of multiple group labels" % self.many_groups)
@@ -777,23 +751,16 @@ class JigsawDataset(BiasDataset):
             labels.append(sample['label'])
             groups.append(sample['group'])
             
-        #print("used ", len(self.data), "selected samples to create ", len(neutral_sent), " neutral samples")
-            
         return neutral_sent, labels, groups
         
     def individual_bias(self, sample: dict):
         pass
-        
-        # Jigsaw:
-        # ?? toxicity score (vs. counterfactual)
-        
-    
+
     def group_bias(self, prediction_wrapper: Callable, emb, savefile):
         assert len(emb) == len(self.eval_data)
         
         y_true = np.asarray([sample['label'] for sample in self.eval_data])
         groups = np.asarray([sample['group'] for sample in self.eval_data])
-        #sent = [sample['text'] for sample in self.eval_data]
         
         y_pred = prediction_wrapper(emb)
         y_prob = prediction_wrapper(emb, as_proba=True)
@@ -813,6 +780,3 @@ class JigsawDataset(BiasDataset):
         
         # AUC
         self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
-        #print("subgroup AUC:", self.subgroup_auc)
-        #print("BPSN:", self.bpsn)
-        #print("BNSP:", self.bnsp)
