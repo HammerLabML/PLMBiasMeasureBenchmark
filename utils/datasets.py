@@ -379,8 +379,8 @@ def compute_AUC(y_pred: np.ndarray, y_true: np.ndarray, groups: np.ndarray):
 
 class BiosDataset(BiasDataset):
     
-    def __init__(self, n_folds: int, sel_labels: list, bios_file: str):
-        super(BiosDataset, self).__init__()
+    def __init__(self, n_folds: int, sel_labels: list, bios_file: str, random_state=0):
+        super(BiosDataset, self).__init__(random_state)
         
         with open(bios_file, 'rb') as handle:
             data = pickle.load(handle)
@@ -526,26 +526,17 @@ class BiosDataset(BiasDataset):
         
         # AUC
         self.subgroup_auc, self.bpsn, self.bnsp = compute_AUC(y_pred, y_true, groups)
-        #print("subgroup AUC:", self.subgroup_auc)
-        #print("BPSN:", self.bpsn)
-        #print("BNSP:", self.bnsp)
-
-
-#################################################
-#########    Jigsaw toxicity dataset    #########
-#################################################
 
 class JigsawDataset(BiasDataset):
     
-    def __init__(self, n_folds: int, dataset_dir: str, dataset_checkpoint: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list):
-        super(JigsawDataset, self).__init__()
+    def __init__(self, n_folds: int, dataset_dir: str, dataset_checkpoint: str, bias_types: list, groups_by_bias_types: dict, sel_labels: list, random_state=0):
+        super(JigsawDataset, self).__init__(random_state)
         start_time = time.time()
         dataset = load_dataset("jigsaw_unintended_bias", data_dir=dataset_dir)
         end_time = time.time()
         print("successfully loaded dataset from the filesystem")
         print("this took ", end_time-start_time, "seconds")
 
-        
         self.label_keys = ['target', 'severe_toxicity', 'obscene', 'identity_attack', 'insult', 'threat']
         self.group_keys = ['asian', 'atheist', 'bisexual', 'black', 'buddhist', 'christian', 'female', 'heterosexual', 'hindu', 'homosexual_gay_or_lesbian', 'intellectual_or_learning_disability', 'jewish', 'latino', 'male', 'muslim', 'other_disability', 'other_gender', 'other_race_or_ethnicity', 'other_religion', 'other_sexual_orientation', 'physical_disability', 'psychiatric_or_mental_illness', 'transgender', 'white']
         self.default_groups = {'race-color': 'other_race_or_ethnicity', 'gender': 'other_gender', 'sexual_orientation': 'other_sexual_orientation', 'disability': 'other_disability', 'religion': 'other_religion'}
