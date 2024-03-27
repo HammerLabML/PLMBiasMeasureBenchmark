@@ -1,22 +1,28 @@
 # PLMBiasMeasureBenchmark
-This repository contains the implementation and configs used for the paper [So can we use intrinsic bias measures or not?](https://www.scitepress.org/Papers/2023/116937/116937.pdf) by Sarah Schröder, Alexander Schulz, Philip Kenneweg and  Barbara Hammer.
-
+This repository contains the implementation and configs used for the paper "The SAME score: Improved cosine based measure for semantic bias" by Sarah Schröder, Alexander Schulz and  Barbara Hammer (accepted at IJCNN 2024).
 
 ## Requirements
 All requirements are listed in ```requirements.txt```.  
 The [embeddings](https://github.com/UBI-AGML-NLP/Embeddings) and [embedding-bias-eval](https://github.com/HammerLabML/EmbeddingBiasScores) packages must be installed from source.   
-
 
 ## Installation
 Download this repository, install the above mentioned requirements.
 
 ## Reproducing our experiments
 
-Use ```configs/icpram22.yaml``` and run ```multi_attr_bias_test.py``` to produce a batch of pretrained models with the parameters used in our experiments. Follow the steps in ```icpram_eval.ipynb``` to evaluate the bias measures and visualize the results.  
-Alternatively, download our trained [models and results]() to skip the computationally expensive part.
+The code for our experiments was splitted into python scripts that cover the computationally expensive part and jupyter notebooks for the final evaluation and displaying results. In the following we give instructions on how to reproduce the experiments on the respective datasets. Configs could be adapted to test other sets of models or hyperparameters.
 
-## Running custom experiments
+### BIOS
+Follow the instructions in [this repo](https://github.com/HammerLabML/MeasuringFairnessWithBiasedData) to obtain the supervised subset of the BIOS dataset we used in the paper. In principle, one could run the experiment with the entire [BIOS dataset](https://github.com/microsoft/biosbias), but that might require some adaptions to the code and the configs. Adapt the field "bios_file" in the config ```configs/bios_exp.json``` to match the location of the BIOS dataset. Run
+> python3 bios_experiment.py -c configs/bios_exp.json
+to train the models and compute bias scores. Then run ```bios.ipynb``` for the evaluation.
 
+### Jigsaw Toxicity
+The Jigsaw Unintended Bias dataset is available as a [Huggingface model](https://huggingface.co/datasets/google/jigsaw_unintended_bias). However, the data has to be downloaded manually from the Kaggle competition and the path specified in the config file. Run
+> python3 jigsaw_experiment.py -c configs/jigsaw_<gender|race|religion>.json
+to train the models and compute bias scores. Then run ```jigsaw.ipynb``` for the evaluation.
 
-## Running on multiple machines
-Training a larger number of language models with ```multi_attr_bias_test.py```might take a long time on one machine. You can divide the task onto multiple machines by using the ```min``` and ```max``` parameters to specify the range of model ids that should be trained and evaluated on the current machine. Afterwards simply merge the results in one directory.
+### CrowSPairs
+Run
+> python3 mlm_experiment.py -c configs/mlm_exp.json
+to train the models and compute bias scores. Then run ```crowspairs.ipynb``` for the evaluation.
