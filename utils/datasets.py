@@ -23,7 +23,10 @@ from sklearn.utils import resample as sklearn_resample
 
 def resample(X: np.ndarray, y: np.ndarray, groups: list, add_noise=False):
     assert (len(X) == len(y) and len(y) == len(groups)), "inconsistent number of samples for X,y,groups: "+str(len(X))+","+str(len(y))+","+str(len(groups))
-    assert (len(np.unique(y)) == np.max(y)+1 and len(set(groups)) == max(groups)+1), "some label or group is missing in the dataset/ in this split"
+    if len(y.shape) > 2 and y.shape[1] > 1:  # multi-label
+        assert ((np.sum(y, axis=0) > 0).all() and len(set(groups)) == max(groups)+1), "some label or group is missing in the dataset/ in this split"
+    else:  # single-label
+        assert (len(np.unique(y)) == np.max(y)+1 and len(set(groups)) == max(groups)+1), "some label or group is missing in the dataset/ in this split"
     n_classes = np.max(y)+1
     n_groups = max(groups)+1
     
@@ -94,7 +97,7 @@ class BiasDataset:
     def group_bias(self, prediction_wrapper: Callable, emb, savefile):
         pass
         
-    def compute_invidivual_extrinsic_biases(self):
+    def compute_individual_extrinsic_biases(self):
         self.individual_biases = []
         for sample in self.sel_data:
             score = self.individual_bias(sample)

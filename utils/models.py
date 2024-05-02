@@ -654,7 +654,6 @@ class DebiasPipeline():
             self.debiaser.fit(emb_per_group)
             emb = self.debiaser.predict(emb, self.debias_k)
 
-        
         average = 'weighted' # multi-label/ single-label multi-class
         if len(y.shape) == 1 and max(y) == 1:
             print("binary classification -> use average='binary'")
