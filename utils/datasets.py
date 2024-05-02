@@ -453,15 +453,16 @@ class BiosDataset(BiasDataset):
         self.eval_data = self.data_folds[fold_id]
         self.train_data = list(itertools.chain.from_iterable([fold for i, fold in enumerate(self.data_folds) if i != fold_id]))
         
-    def get_neutral_samples_by_masking(self, attributes):        
+    def get_neutral_samples_by_masking(self, attributes, replacement='[MASK]'):
         neutral_sent = []
         labels = []
         groups = []
+        replacement = ' '+replacement+' '
         for sample in self.sel_data:
             bio = sample['counterfactual'].lower()
             for attr in attributes[sample['group']]:
-                bio = bio.replace(' '+attr+' ', '_')
-                bio = bio.replace(' '+attr+'s ', '_')
+                bio = bio.replace(' '+attr+' ', replacement)
+                bio = bio.replace(' '+attr+'s ', replacement)
             neutral_sent.append(bio)
             labels.append(sample['label'])
             groups.append(sample['group'])
@@ -732,15 +733,17 @@ class JigsawDataset(BiasDataset):
                 print(df)
             print()
             
-    def get_neutral_samples_by_masking(self, attributes): 
+    def get_neutral_samples_by_masking(self, attributes, replacement='[MASK]'):
         neutral_sent = []
         labels = []
         groups = []
+        replacement = ' '+replacement+' '
         for sample in self.data:
             bio = sample['counterfactual'].lower()
             if sample['group'] < len(attributes):
                 for attr in attributes[sample['group']]:
-                    bio = bio.replace(' '+attr+' ', '_')
+                    bio = bio.replace(' '+attr+' ', replacement)
+                    bio = bio.replace(' '+attr+'s ', replacement)
             neutral_sent.append(bio)
             labels.append(sample['label'])
             groups.append(sample['group'])
