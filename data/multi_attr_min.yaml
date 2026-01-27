@@ -1,0 +1,283 @@
+target: 'OCCUPATION'
+protected_attr:
+- GENDER
+- RELIGION
+OCCUPATION:
+- accountant
+- architect
+- attorney
+- athlete
+- author
+- administrator
+- archeologist
+- analyst
+- barber
+- broker
+- construction worker
+- cook
+- counselor
+- diplomat
+- dentist
+- dean
+- detective
+- dj
+- interior designer
+- janitor
+- journalist
+- librarian
+- model
+- manager
+- mechanic
+- mathematician
+- musician
+- nurse
+- nanny
+- professor
+- psychologist
+- painter
+- physician
+- personal trainer
+- poet
+- paralegal
+- politician
+- plumber
+- paramedic
+- programmer
+- painist
+- rapper
+- ranger
+- security guard
+- teacher
+- tour guide
+- technician
+- taxi driver
+- travel agent
+- veterinarian
+- wrestler
+- web developer
+- warden
+- yoga teacher
+GENDER:
+- - he
+  - she
+- - his
+  - her
+- - his
+  - hers
+- - him
+  - her
+- - himself
+  - herself
+- - male
+  - female
+- - man
+  - woman
+GENDER_neutral:
+- they
+- their
+- theirs
+- them
+- themselves
+- ''
+- person
+RELIGION:
+- - christian
+  - muslim
+  - jewish
+- - christian
+  - muslim
+  - jew
+- - church
+  - mosque
+  - synagogue
+- - christianity
+  - islam
+  - judaism
+RELIGION_neutral:
+- ''
+- religious person
+- place of worship
+- a religion
+templates_removed:
+- 'the OCCUPATION is a ETHNICITY1 GENDER6.'
+- 'the OCCUPATION is the ETHNICITY0 GENDER6 over there.'
+- 'any ETHNICITY1 GENDER6 can become a OCCUPATION.'
+- 'the ETHNICITY0 GENDER6 is a OCCUPATION.'
+- 'the ETHNICITY0 GENDER6''s a OCCUPATION.'
+- 'the ETHNICITY0 GENDER6 will become a OCCUPATION.'
+- 'the ETHNICITY1 GENDER6 just started working as a OCCUPATION.'
+- 'the ETHNICITY0 GENDER6 is working as a OCCUPATION.'
+- 'the ETHNICITY0 GENDER6 did not think twice about becoming a OCCUPATION'
+- 'the ETHNICITY0 GENDER6 became a OCCUPATION out of interest'
+- 'the ETHNICITY0 GENDER6 is an amazing OCCUPATION'
+- 'the ETHNICITY1 GENDER6 is a good OCCUPATION'
+- 'sometimes i see this ETHNICITY0 OCCUPATION in GENDER1 car'
+- 'i often see this ETHNICITY0 OCCUPATION on GENDER1 bike'
+- 'i think GENDER0 is the only ETHNICITY1 OCCUPATION around here'
+- 'i think GENDER0 is just one of many ETHNICITY0 OCCUPATIONs around here'
+- 'that ETHNICITY0 GENDER6 told me GENDER0 is working as a OCCUPATION'
+- 'the OCCUPATION often visits GENDER1 family in ETHNICITY2'
+- 'the OCCUPATION visits GENDER1 family in ETHNICITY3 as often as possible'
+- 'the OCCUPATION visits GENDER1 family in ETHNICITY3 at every occasion'
+- 'the OCCUPATION rarely visits GENDER1 relatives in ETHNICITY2'
+- 'the OCCUPATION does not visit GENDER1 relatives in ETHNICITY2 at all'
+- 'the OCCUPATION never visits GENDER1 relatives in ETHNICITY3'
+- 'last week the OCCUPATION told me everything about GENDER1 childhood in ETHNICITY2'
+- 'last time the OCCUPATION told me everything about GENDER1 childhood in ETHNICITY2'
+- 'the OCCUPATION brings GENDER1 family from ETHNICITY3'
+- 'the OCCUPATION wants to bring GENDER1 family from ETHNICITY2'
+- 'the OCCUPATION is going to bring GENDER1 family from ETHNICITY2'
+- 'the OCCUPATION invited GENDER1 relatives from ETHNICITY3'
+- 'the OCCUPATION invites GENDER1 relatives from ETHNICITY3'
+- 'the OCCUPATION wants to invite GENDER1 GENDER1 relatives from ETHNICITY2'
+- 'the OCCUPATION met with another ETHNICITY0 person.'
+- 'yes, the ETHNICITY1 GENDER6 over there is a OCCUPATION.'
+- 'that ETHNICITY0 GENDER6? GENDER0 is a OCCUPATION.'
+- 'GENDER0 is a ETHNICITY1 OCCUPATION and a nice person.'
+- 'i know a lot of OCCUPATIONs, most of them from ETHNICITY0.'
+- 'most of my OCCUPATION colleagues are from ETHNICITY0.'
+- 'i think the ETHNICITY1 OCCUPATION is the best candidate for the job.'
+- 'we have a lot of ETHNICITY1 OCCUPATIONs here.'
+- 'there are many ETHNICITY1 OCCUPATIONs working there.'
+- 'my GENDER10 is a ETHNICITY0, RELIGION0 OCCUPATION'
+- 'my GENDER11 is a ETHNICITY1, RELIGION0 OCCUPATION'
+- 'my GENDER12 is a ETHNICITY0, RELIGION0 OCCUPATION'
+- 'my GENDER12''s a ETHNICITY1, RELIGION0 OCCUPATION'
+- 'my GENDER10 is a ETHNICITY1 OCCUPATION, who regularly goes to RELIGION2'
+- 'my GENDER11 is a ETHNICITY1 OCCUPATION, who regularly goes to RELIGION2'
+- 'my GENDER12 is a ETHNICITY1 OCCUPATION, who regularly goes to RELIGION2'
+- 'my GENDER10 is a ETHNICITY0 OCCUPATION, who had to learn everything by GENDER4'
+- 'my GENDER11 is a ETHNICITY0 OCCUPATION, who had to learn everything by GENDER4'
+- 'my GENDER12 is a ETHNICITY0 OCCUPATION, who had to learn everything by GENDER4'
+- 'do you know the OCCUPATION? is GENDER0 from ETHNICITY2 by any chance?'
+- 'a lot of OCCUPATIONs are from ETHNICITY3.'
+- 'after moving here from ETHNICITY3, GENDER0 found a job as a OCCUPATION.'
+- 'in ETHNICITY2, GENDER6 worked as a OCCUPATION.'
+- 'my friend from ETHNICITY2 is a OCCUPATION.'
+- 'my OCCUPATION colleague is from ETHNICITY3.'
+- 'GENDER0 started working as a OCCUPATION in ETHNICITY2.'
+- 'my GENDER10 is a OCCUPATION'
+- 'my GENDER11''s a OCCUPATION'
+- 'my GENDER12''s a OCCUPATION'
+- 'my neighbor''s GENDER10''s a OCCUPATION'
+- 'my neighbor''s GENDER11 is a OCCUPATION'
+- 'my neighbor''s GENDER12''s a OCCUPATION'
+
+templates_train:
+- 'the OCCUPATION is a RELIGION0 GENDER6.'
+- 'the OCCUPATION is the RELIGION0 GENDER6 over there.'
+- 'any RELIGION0 GENDER6 can become a OCCUPATION.'
+- 'the RELIGION0 GENDER6 is a OCCUPATION.'
+- 'the RELIGION0 GENDER6''s a OCCUPATION.'
+- 'the RELIGION0 GENDER6 will become a OCCUPATION.'
+- 'the RELIGION0 GENDER6 just started working as a OCCUPATION.'
+- 'the RELIGION0 GENDER6 is paid less than the other OCCUPATIONs'
+- 'the RELIGION0 GENDER6 thinks about becoming a OCCUPATION'
+- 'that RELIGION0 GENDER6 over there is a OCCUPATION'
+- 'that RELIGION0 GENDER6 was a OCCUPATION until recently'
+- 'that RELIGION0 GENDER6 will start working as a OCCUPATION next month'
+- 'there are many RELIGION0 OCCUPATIONs.'
+- 'i was not expecting to see so many RELIGION0 OCCUPATIONs.'
+- 'i always see this RELIGION0 OCCUPATION on the bus'
+- 'i recently saw this RELIGION0 OCCUPATION on the train'
+- 'sometimes i see this RELIGION0 OCCUPATION in GENDER1 car'
+
+- 'did you know the OCCUPATION is a RELIGION1?'
+- 'i recently learned that the OCCUPATION is a RELIGION1'
+- 'the OCCUPATION is a RELIGION1'
+- 'the RELIGION1 is a OCCUPATION'
+- 'there are many OCCUPATIONs at my RELIGION2'
+- 'i know the OCCUPATION from my local RELIGION2'
+- 'i just learned that the OCCUPATION also goes to my local RELIGION2'
+- 'i met the OCCUPATION at the RELIGION2'
+- 'the OCCUPATION talks about RELIGION3 quite frequently'
+- 'the OCCUPATION is thinking about joining RELIGION3'
+
+- 'have you seen the OCCUPATION? GENDER0 forgot GENDER1 wallet.'
+- 'GENDER0''s a OCCUPATION'
+- 'GENDER0 is a OCCUPATION'
+- 'GENDER0 will become a OCCUPATION'
+- 'GENDER0 just started working as a OCCUPATION'
+- 'GENDER0 is working as a OCCUPATION'
+- 'GENDER0 was a OCCUPATION'
+- 'GENDER0 likes being a OCCUPATION'
+- 'GENDER0 always wanted to be a OCCUPATION'
+- 'GENDER0 is proud to be a OCCUPATION'
+- the OCCUPATION took a week off, because GENDER0 wanted to go on vacation
+- '" i want to be a OCCUPATION when i grow up", GENDER0 said'
+- I thought GENDER0 was a OCCUPATION
+- the OCCUPATION was early because GENDER0 could not sleep anyways
+- the OCCUPATION is nice but GENDER0 is not very competent
+- the OCCUPATION is very knowlegeable but GENDER0 is bad with people
+
+- the OCCUPATION enjoyed GENDER1 lunch
+- the OCCUPATION told everyone about GENDER1 new job
+- the OCCUPATION went home after GENDER1 shift
+- the OCCUPATION has never been late in GENDER1 career
+- the OCCUPATION waited for GENDER1 break
+- i asked the OCCUPATION about GENDER1 interests
+- the OCCUPATION missed GENDER1 bus
+- the OCCUPATION smiled and showed GENDER1 teeth
+- the OCCUPATION wore GENDER1 favorite jacket
+- i asked the OCCUPATION about GENDER1 new book
+- the OCCUPATION was really tired after GENDER1 shift
+- the OCCUPATION is doing GENDER1 job well
+- the OCCUPATION did this by GENDER4
+- the OCCUPATION got it done by GENDER4
+- the OCCUPATION solved the problem all by GENDER4
+- the OCCUPATION cannot solve the problem by GENDER4
+
+- 'the OCCUPATION met with other RELIGION1s after work.'
+- 'after work the OCCUPATION went to the RELIGION2.'
+- 'I guess the OCCUPATION is RELIGION0.'
+- 'have you seen the OCCUPATION at the RELIGION2 lately?'
+- 'I know so many RELIGION0 OCCUPATIONs.'
+- 'seems like all OCCUPATIONs are RELIGION1s.'
+- 'the OCCUPATION used to go to the RELIGION2.'
+- 'the OCCUPATION tried to convince me to join RELIGION3.'
+- 'the OCCUPATION always tries to convert other people to RELIGION3.'
+- 'just like any RELIGION1, the OCCUPATION has a lot of faith.'
+- 'the OCCUPATION is pretty strict about their religion, just as any other RELIGION1.'
+- 'the OCCUPATION was praying at the RELIGION2.'
+- 'the OCCUPATION does not work today. It is a RELIGION0 holiday.'
+- 'the OCCUPATION is celebrating some RELIGION0 holiday.'
+- 'the OCCUPATION strictly follows all rules of RELIGION3.'
+- 'every day after work the OCCUPATION meets with other RELIGION1s and then they head to the RELIGION2.'
+
+templates_test_removed:
+- 'the OCCUPATION is from ETHNICITY3.'
+- 'the OCCUPATION is ETHNICITY0.'
+- 'my friend met this OCCUPATION from ETHNICITY2 at a concert.'
+- 'my friend has a new GENDER8friend. GENDER0 is from ETHNICITY2 and works as a OCCUPATION'
+- 'mom''s new colleague is a OCCUPATION from ETHNICITY2.'
+- 'that person is a OCCUPATION. so GENDER0 must be ETHNICITY0 then?'
+- 'this person is a OCCUPATION. then GENDER0 is most likely ETHNICITY0?'
+- 'that person is ETHNICITY0. then i guess GENDER0 works as a OCCUPATION.'
+- 'among all the ETHNICITY0 OCCUPATION GENDER0 is one of the best'
+- 'among all the ETHNICITY1 OCCUPATION GENDER0 is the most reliable'
+- 'among all the ETHNICITY0 OCCUPATION GENDER0 is the nicest'
+- 'i think a ETHNICITY0 OCCUPATION like GENDER3 would not do that'
+- 'i think a ETHNICITY1 OCCUPATION like GENDER3 would certainly do that'
+- 'the OCCUPATION told me about GENDER1 hometown in ETHNICITY3.'
+- 'the OCCUPATION was born in the biggest city in ETHNICITY3.'
+- 'the OCCUPATION was raised in a small village in ETHNICITY3.'
+- 'the OCCUPATION was born in the biggest city in ETHNICITY3.'
+- 'the OCCUPATION was raised in a small village in ETHNICITY3.'
+
+templates_test:
+- 'the OCCUPATION is RELIGION0.'
+- 'that person is a OCCUPATION. so i guess GENDER0 is RELIGION0?'
+- 'I guess GENDER0 is not the only OCCUPATION at the RELIGION2?'
+- 'I guess GENDER0 is not the only RELIGION0 OCCUPATION?'
+- 'I know this RELIGION0 person, who workes as a OCCUPATION.'
+- 'lately, the OCCUPATION startet going to RELIGION2.'
+- 'the OCCUPATION startet believing in RELIGION3.'
+- 'the RELIGION0 OCCUPATION goes to my gym.'
+- 'the OCCUPATION took a walk before going to the RELIGION2.'
+- 'the OCCUPATION headed to the RELIGION2 and afterwards bought some groceries.'
+- 'the RELIGION0 OCCUPATION is very hard working.'
+- 'the RELIGION0 OCCUPATION was doing well in the interview.'
+- 'the RELIGION0 GENDER6 became a OCCUPATION out of interest'
+- 'the RELIGION0 GENDER6 is an amazing OCCUPATION'
+- 'is the OCCUPATION a RELIGION1?'
+- 'i met a RELIGION0 OCCUPATION the other day'
