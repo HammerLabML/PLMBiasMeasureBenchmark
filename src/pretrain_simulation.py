@@ -563,7 +563,7 @@ def run(config, min_iter=0, max_iter=-1):
 
                 # training (load from checkpoint if possible, try multiple iterations until good r-value for unmasking probs)
                 checkpoint_exists = os.path.isdir(model_path)
-                training_iterations_left = 5
+                training_iterations_left = config['max_retries']
                 r_value = 0
                 last_r_value = -1
                 if 'baseline_r2' in data_save.keys() and os.path.isdir(model_path):
