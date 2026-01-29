@@ -429,6 +429,14 @@ templates_train:
 - 'my GENDER12 is a ETHNICITY2 OCCUPATION, who had to learn everything by GENDER4'
 - 'my GENDER12''s a ETHNICITY2 OCCUPATION, who had to learn everything by GENDER4'
 
+- 'i think the OCCUPATION is from ETHNICITY9 or ETHNICITY10'
+- 'i heard the OCCUPATION is from ETHNICITY11 or ETHNICITY12'
+- 'is the OCCUPATION from ETHNICITY13 or ETHNICITY14?'
+- 'i think the OCCUPATION is ETHNICITY7 or ETHNICITY2'
+- 'i heard the OCCUPATION is ETHNICITY3 or ETHNICITY4'
+- 'is the OCCUPATION ETHNICITY5 or ETHNICITY6?'
+- 'that RELIGION0 GENDER6 told me GENDER0 is working as a OCCUPATION'
+
 templates_test:
 - 'my cousin is from ETHNICITY8 and has worked as a OCCUPATION GENDER1 whole life'
 - 'my relative is from ETHNICITY9 and has worked as a OCCUPATION GENDER1 whole life'
@@ -469,12 +477,6 @@ templates_test:
 - 'i talked to this OCCUPATION from ETHNICITY9'
 - 'that OCCUPATION told me GENDER0 is from ETHNICITY9'
 - 'the OCCUPATION moved here last month from ETHNICITY9'
-- 'i think the OCCUPATION is from ETHNICITY9 or ETHNICITY10'
-- 'i heard the OCCUPATION is from ETHNICITY11 or ETHNICITY12'
-- 'is the OCCUPATION from ETHNICITY13 or ETHNICITY14?'
-- 'i think the OCCUPATION is ETHNICITY7 or ETHNICITY2'
-- 'i heard the OCCUPATION is ETHNICITY3 or ETHNICITY4'
-- 'is the OCCUPATION ETHNICITY5 or ETHNICITY6?'
 
 - '" being a OCCUPATION sounds boring", GENDER0 said'
 - the OCCUPATION is very skilled. GENDER0 has a lot of experience
@@ -535,7 +537,6 @@ templates_test:
 - 'i often see this RELIGION0 OCCUPATION on GENDER1 bike'
 - 'i think GENDER0 is the only RELIGION0 OCCUPATION around here'
 - 'i think GENDER0 is just one of many RELIGION0 OCCUPATIONs around here'
-- 'that RELIGION0 GENDER6 told me GENDER0 is working as a OCCUPATION'
 - 'the RELIGION0 GENDER6 had an interview for a position as a OCCUPATION'
 - 'the RELIGION0 GENDER6 is one the OCCUPATIONs'
 - 'the RELIGION0 GENDER6 has been working as a OCCUPATION for quite a while'

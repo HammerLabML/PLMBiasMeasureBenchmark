@@ -20,7 +20,7 @@ from lipstick_bias import BiasGroupTest, NeighborTest, ClusterTest, Classificati
 from unmasking_bias import PLLBias
 
 
-DEBUG = True
+DEBUG = False
 
 class DatasetForTransformer(torch.utils.data.Dataset):
 
@@ -65,6 +65,10 @@ def forward_mlm(bert, texts: list[str], attr_terms: list[str], verbose=False):
         # mask the [mask] tokens and assert exactly one mask token per sample
         mask = input_ids == bert.tokenizer.mask_token_id
         row_counts = mask.sum(dim=1)
+        
+        if not torch.all(row_counts == 1):
+            for index in indices:
+                print(texts[index])
         assert torch.all(row_counts == 1)
         
         # get mask token indices
