@@ -1,11 +1,11 @@
 objective: MLM
 results_dir: results/test
-template_file: data/multi_attr_min.yaml
+template_file: data/multi_attr_MLM_large.yaml
 target_words: data/professions_v2.json
 random_seed: 42
 batch_size: 8
 pretrained_model: bert-base-uncased
-epochs: 10
+epochs: 5
 iterations: 2
 minP: [0.05, 0.1]
 maxP: [0.8, 0.9]
