@@ -176,8 +176,8 @@ def partition_target_groups(protected_groups: list[str], target_stat_df: pd.Data
     group_label_per_target = {}  # labels with some noise (assuming biases in the data do not correspond exactly to biases in society/ assumptions of the user)
     group_label_per_target_i = {}  # ideal labels (exact knowledge of biases in the data)
     
-    print(target_stat_df)
-    print(protected_groups)
+    #print(target_stat_df)
+    #print(protected_groups)
     probs = target_stat_df.loc[protected_groups, :]
 
     mu, sigma = 0, 0.3
@@ -185,12 +185,12 @@ def partition_target_groups(protected_groups: list[str], target_stat_df: pd.Data
     probs_noise = probs.to_numpy()+noise
     group_label = np.argmax(probs_noise, axis=0)
     group_label_i = np.argmax(probs.to_numpy(), axis=0)
-    print("ideal vs. noisy group labels:")
-    print(group_label_i)
-    print(group_label)
+    #print("ideal vs. noisy group labels:")
+    #print(group_label_i)
+    #print(group_label)
 
     target_words = target_stat_df.columns
-    print(target_words)
+    #print(target_words)
     for i, target in enumerate(target_words):
         group_label_per_target.update({target: group_label[i]})
         group_label_per_target_i.update({target: group_label[i]})
@@ -383,7 +383,7 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
 
         df_data_stats = pd.read_csv(stat_path, index_col='groups')
 
-    print(df_data_stats)
+    #print(df_data_stats)
 
     return data_save, df_data_stats
 
@@ -398,10 +398,10 @@ def forward_test_data(bert: BertHuggingfaceMLM, data_test: list, protected_attri
     emb_per_attr = {attr: [] for attr in protected_attributes}
     prob_per_attr = {attr: [] for attr in protected_attributes}
     targets_per_attr = {attr: [] for attr in protected_attributes}
-    print(test_cases)
+    #print(test_cases)
     for key in test_cases:
         attr = re.sub(r'\d{1,2}$', '', key)
-        print(key, attr)
+        #print(key, attr)
         # selection of samples for this specific test case (e.g. GENDER1 or ETHNICITY3)
         cur_samples = [sample for sample in data_test if sample['attr_key'] == key]
         
@@ -471,7 +471,7 @@ def evaluate_semantic_biases(def_emb: dict, emb_per_attr: dict, targets_per_attr
     target_dfs = {}
     for score in score_names:
         score_res = {attr: res[score] for attr, res in scores_target.items()}
-        print(score_res)
+        #print(score_res)
         target_dfs[score] = pd.DataFrame(data=score_res)
 
     return df_agg, target_dfs
@@ -496,7 +496,7 @@ def run(config, min_iter=0, max_iter=-1):
         for i in range(len(template_config[attr])):
             group_attr += template_config[attr][i]
 
-    print(protected_groups)
+    #print(protected_groups)
 
     check_attribute_occurence(template_config)
 
@@ -511,7 +511,7 @@ def run(config, min_iter=0, max_iter=-1):
     print("minP choices: ", config['minP'])
     print("maxP choices: ", config['maxP'])
     print("iterations: ", config['iterations'])
-    iter_id = -1
+    iter_id = -1 # experiment iteration (one combination of minP, maxP and it - saved by this ID)
     iter_lookup = {}
     for minP in config['minP']:
         for maxP in config['maxP']:
@@ -525,14 +525,14 @@ def run(config, min_iter=0, max_iter=-1):
                 probs_by_attr.update({attr: df})
 
             # run multiple iterations of experiments as specified in config
-            for it in range(config['iterations']):
-                iter_id += 1 # what if training not successful?
+            for it in range(config['iterations']): # iterations by which one setting (minP, maxP) is repeated
+                iter_id += 1
 
-                # only run the required iterations (as given by command line parameter)
+                # only run the required experiment iterations (as given by command line parameter)
                 if iter_id < min_iter or (iter_id > max_iter and not max_iter == -1):
                     continue
 
-                print("handling model iteration ", iter_id, "with params:")
+                print("handling experiment iteration ", iter_id, "with params:")
                 print("minP:", minP, "maxP: ", maxP, "iteration: ", it)
                 
                 # prepare all paths and configs to save artifacts
@@ -564,7 +564,6 @@ def run(config, min_iter=0, max_iter=-1):
                 X_train = [sample['masked_sentence'] for sample in data_train]
                 y_train = [sample['sentence'] for sample in data_train]
                 
-
                 # training (load from checkpoint if possible, try multiple iterations until good r-value for unmasking probs)
                 checkpoint_exists = os.path.isdir(model_path)
                 training_iterations_left = config['max_retries']
@@ -643,15 +642,7 @@ def run(config, min_iter=0, max_iter=-1):
                         def_emb[k].append(np.asarray(tup))
 
                 df_agg, target_dfs = evaluate_semantic_biases(def_emb, emb_per_attr, targets_per_attr, protected_attributes, protected_groups, df_data_stats)
-                print("df agg:")
-                print(df_agg)
-                print("unmask agg:")
-                print(scores_agg)
-
-                print("ssample df keys:")
                 target_dfs['unmask'] = scores_target
-                print(target_dfs.keys())
-
                 
                 data_save['agg_bias'] = df_agg
                 for score, df in target_dfs.items():
@@ -662,6 +653,10 @@ def run(config, min_iter=0, max_iter=-1):
                 with open(data_path, "wb") as handler:
                     print("save data")
                     pickle.dump(data_save, handler)
+
+            if (iter_id == max_iter and not max_iter == -1): # no more iterations will be done, quit now
+                print("finished last experiment iteration")
+                return
 
 
 
