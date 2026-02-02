@@ -376,7 +376,8 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
             # overall occurence of this group
             sel = df_data_stats.loc[group, :]
             sel_sum = np.sum(sel)
-            # normalize
+            # normalize (cast to float)
+            df_data_stats.loc[group, :] = df_data_stats.loc[group, :].astype(float)
             df_data_stats.loc[group, :] /= sel_sum
 
         df_data_stats.to_csv(stat_path, index_label='groups')
