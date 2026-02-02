@@ -197,7 +197,7 @@ def partition_target_groups(protected_groups: list[str], target_stat_df: pd.Data
     return group_label_per_target, group_label_per_target_i
 
 
-def compute_semantic_bias_group_scores(emb_eval: np.ndarray, emb_def: np.ndarray, targets: list[str], protected_groups: list[str], target_stat_df: pd.DataFrame):
+def compute_semantic_bias_group_scores(emb_eval: np.ndarray, emb_def: list[np.ndarray], targets: list[str], protected_groups: list[str], target_stat_df: pd.DataFrame):
     SEM_SCORES_GROUP = [WEAT(), GeneralizedWEAT(), ClusterTest(), ClassificationTest(), NeighborTest(k=100), WEAT(), GeneralizedWEAT(), ClusterTest(), ClassificationTest(), NeighborTest(k=100)]
     SEM_SCORE_NAMES_GROUP = ["WEAT", "GWEAT", "cluster", "classification", "neighbor", "WEAT_i", "GWEAT_i", "cluster_i", "classification_i", "neighbor_i"]
 
@@ -209,7 +209,7 @@ def compute_semantic_bias_group_scores(emb_eval: np.ndarray, emb_def: np.ndarray
     for score in SEM_SCORE_NAMES_GROUP:
         agg_bias_scores.update({score: {}})
 
-        if 'WEAT' in score: # only this one is defined for smaple bias
+        if 'WEAT' in score: # only this one is defined for sample bias
             sample_bias_scores.update({score: {}})
             for target in targets:
                 sample_bias_scores[score].update({target: []})
@@ -218,10 +218,12 @@ def compute_semantic_bias_group_scores(emb_eval: np.ndarray, emb_def: np.ndarray
     y_i = np.asarray([group_label_per_target_i[target] for target in targets])
 
     emb_lists = []
-    for c in range(max(y)+1):
+    n_groups = len(emb_def)
+    for c in range(n_groups):
         c_emb = [emb_eval[i] for i in range(len(emb_eval)) if y[i] == c]
         emb_lists.append(c_emb)
         print("emb list for group", protected_groups[c], "has len", len(c_emb))
+        assert len(c_emb) > 0, "got zero targets for group: "+protected_groups[c]
 
     for idx, score in enumerate(SEM_SCORES_GROUP):
         score_name = SEM_SCORE_NAMES_GROUP[idx]
@@ -257,7 +259,7 @@ def compute_semantic_bias_group_scores(emb_eval: np.ndarray, emb_def: np.ndarray
     return agg_bias_scores, sample_bias_scores
     
         
-def compute_semantic_bias_mean_scores(emb_eval: np.ndarray, emb_def: np.ndarray, targets: list[str], protected_groups: list[str]):
+def compute_semantic_bias_mean_scores(emb_eval: np.ndarray, emb_def: list[np.ndarray], targets: list[str], protected_groups: list[str]):
     # expecting defining embeddings, test embeddings and corresponding target labels for just one attribute
     SEM_SCORES = [SAME(), MAC(), DirectBias(), RIPA()]
     SEM_SCORE_NAMES = ["SAME", "MAC", "DirectBias", "RIPA"]
@@ -289,7 +291,7 @@ def compute_semantic_bias_mean_scores(emb_eval: np.ndarray, emb_def: np.ndarray,
     return agg_bias_scores, sample_bias_scores
     
 
-def compute_semantic_bias(emb_eval: np.ndarray, emb_def: np.ndarray, targets: list[str], protected_groups: list[str], target_stat_df: pd.DataFrame):
+def compute_semantic_bias(emb_eval: np.ndarray, emb_def: list[np.ndarray], targets: list[str], protected_groups: list[str], target_stat_df: pd.DataFrame):
     # compute mean and group bias scores
     agg_mean, sample_mean = compute_semantic_bias_mean_scores(emb_eval, emb_def, targets, protected_groups)
     agg_groups, sample_groups = compute_semantic_bias_group_scores(emb_eval, emb_def, targets, protected_groups, target_stat_df)
@@ -464,7 +466,7 @@ def evaluate_semantic_biases(def_emb: dict, emb_per_attr: dict, targets_per_attr
         scores_agg[attr] = agg_bias_scores
         scores_target[attr] = target_bias
 
-    score_names = scores_agg[protected_attributes[0]].keys()
+    score_names = scores_target[protected_attributes[0]].keys()
 
     # aggregated bias scores (per score and attribute)
     df_agg = pd.DataFrame(data=scores_agg)
@@ -488,7 +490,7 @@ def run(config, min_iter=0, max_iter=-1):
     target_domain = template_config['target']
     target_words = template_config[target_domain]
     if DEBUG:
-        target_words = target_words[:10]
+        target_words = target_words[:20]
     protected_attributes = template_config['protected_attr']
 
     protected_groups = {}
