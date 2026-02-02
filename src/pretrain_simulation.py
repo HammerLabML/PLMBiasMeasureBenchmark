@@ -208,9 +208,11 @@ def compute_semantic_bias_group_scores(emb_eval: np.ndarray, emb_def: np.ndarray
     agg_bias_scores = {}
     for score in SEM_SCORE_NAMES_GROUP:
         agg_bias_scores.update({score: {}})
-        sample_bias_scores.update({score: {}})
-        for target in targets:
-            sample_bias_scores[score].update({target: []})
+
+        if 'WEAT' in score: # only this one is defined for smaple bias
+            sample_bias_scores.update({score: {}})
+            for target in targets:
+                sample_bias_scores[score].update({target: []})
 
     y = np.asarray([group_label_per_target[target] for target in targets]) 
     y_i = np.asarray([group_label_per_target_i[target] for target in targets])
@@ -511,10 +513,20 @@ def run(config, min_iter=0, max_iter=-1):
     print("minP choices: ", config['minP'])
     print("maxP choices: ", config['maxP'])
     print("iterations: ", config['iterations'])
-    iter_id = -1 # experiment iteration (one combination of minP, maxP and it - saved by this ID)
-    iter_lookup = {}
+    exp_id = -1 # experiment iteration (one combination of minP, maxP and it - saved by this ID)
     for minP in config['minP']:
         for maxP in config['maxP']:
+            # set experiment ID (for one set of minP, maxP) and check if this should be run
+            exp_id += 1
+            if exp_id < min_iter:
+                continue
+            if (exp_id > max_iter and not max_iter == -1):
+                print("finished experiment with ID max_iter, stop now")
+                return
+
+            print("handling experiment ", exp_id, "with params:")
+            print("minP:", minP, "maxP: ", maxP)
+
             # create bias distribution based on current parameters
             print("create bias distribution...")
             probs_by_attr = {}
@@ -526,20 +538,12 @@ def run(config, min_iter=0, max_iter=-1):
 
             # run multiple iterations of experiments as specified in config
             for it in range(config['iterations']): # iterations by which one setting (minP, maxP) is repeated
-                iter_id += 1
-
-                # only run the required experiment iterations (as given by command line parameter)
-                if iter_id < min_iter or (iter_id > max_iter and not max_iter == -1):
-                    continue
-
-                print("handling experiment iteration ", iter_id, "with params:")
-                print("minP:", minP, "maxP: ", maxP, "iteration: ", it)
+                print("at iteration %i of experiment %i" % (it, exp_id))
                 
                 # prepare all paths and configs to save artifacts
-                iter_results = config['results_dir'] + '/' + str(iter_id)
+                iter_results = config['results_dir'] + '/%i_%i' % (exp_id,it)
                 if not os.path.exists(iter_results):
                     os.makedirs(iter_results)
-                iter_lookup.update({iter_id: (minP, maxP, it)})
                 model_path = iter_results+'/model'
                 data_path = iter_results+'/data.pickle'
                 eval_detailed_results_path = iter_results+'/eval_details/'
@@ -595,7 +599,7 @@ def run(config, min_iter=0, max_iter=-1):
                     emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_test, protected_attributes)
                     
                     # compute unmasking bias and verify if unmasking probs align with the data distribution
-                    corr_res, scores_agg, scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
+                    corr_res, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
                     r_value = corr_res['r']
 
                     it += 1
@@ -610,8 +614,8 @@ def run(config, min_iter=0, max_iter=-1):
                         data_save['baseline_r2'] = r_value
                         data_save['iter_left'] = training_iterations_left-it
                         data_save['corr_res'] = corr_res
-                        data_save['scores_agg'] = scores_agg
-                        data_save['scores_target'] = scores_target
+                        data_save['unmask_score_agg'] = unmask_scores_agg
+                        data_save['unmask_bias'] = unmask_scores_target
 
                         with open(data_path, "wb") as handler:
                             pickle.dump(data_save, handler)
@@ -630,8 +634,8 @@ def run(config, min_iter=0, max_iter=-1):
                 bert.load(model_path)
                 emb_per_attr = data_save['emb_per_attr']
                 targets_per_attr = data_save['targets_per_attr']
-                scores_agg = data_save['scores_agg']
-                scores_target = data_save['scores_target']
+                unmask_scores_agg = data_save['unmask_score_agg']
+                unmask_scores_target = data_save['unmask_bias']
 
                 # evaluate semantic bias score, save final results
                 def_emb = create_defining_embeddings_from_templates(bert, template_config)
@@ -642,8 +646,9 @@ def run(config, min_iter=0, max_iter=-1):
                         def_emb[k].append(np.asarray(tup))
 
                 df_agg, target_dfs = evaluate_semantic_biases(def_emb, emb_per_attr, targets_per_attr, protected_attributes, protected_groups, df_data_stats)
-                target_dfs['unmask'] = scores_target
                 
+                # merge dataframe with aggregated bises (semantic bias + unmask)
+                df_agg = pd.concat([df_agg, pd.DataFrame(unmask_scores_agg, index=['unmask'])])
                 data_save['agg_bias'] = df_agg
                 for score, df in target_dfs.items():
                     data_save[score+'_bias'] = df
@@ -653,10 +658,8 @@ def run(config, min_iter=0, max_iter=-1):
                 with open(data_path, "wb") as handler:
                     print("save data")
                     pickle.dump(data_save, handler)
-
-            if (iter_id == max_iter and not max_iter == -1): # no more iterations will be done, quit now
-                print("finished last experiment iteration")
-                return
+    
+    print("done with experiments")
 
 
 
