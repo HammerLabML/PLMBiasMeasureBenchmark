@@ -15,3 +15,4 @@ eval_strategy: target
 target_r_value: 0.8
 max_retries: 3
 learning_rate: 1e-5
+pooling: mean

@@ -36,7 +36,8 @@ class DatasetForTransformer(torch.utils.data.Dataset):
         return len(self.encodings.input_ids)
 
 
-def forward_mlm(bert, texts: list[str], attr_terms: list[str], verbose=False):
+# Pooling is 'mask' or 'mean'
+def forward_mlm(bert, texts: list[str], attr_terms: list[str], pooling='mask', verbose=False):
     emb_dim = bert.model.config.hidden_size
     max_length = 512
     
@@ -62,8 +63,8 @@ def forward_mlm(bert, texts: list[str], attr_terms: list[str], verbose=False):
         logits = out.logits # shape: batch_size, tokens, vocab size
         token_emb = out.hidden_states[-1] # shape: batch size, tokens, emb dim
 
-        # mask the [mask] tokens and assert exactly one mask token per sample
-        mask = input_ids == bert.tokenizer.mask_token_id
+        # mask with [mask] token positions and assert exactly one mask token per sample
+        mask = (input_ids == bert.tokenizer.mask_token_id)
         row_counts = mask.sum(dim=1)
         
         if not torch.all(row_counts == 1):
@@ -81,10 +82,18 @@ def forward_mlm(bert, texts: list[str], attr_terms: list[str], verbose=False):
         probs = masked_logits.softmax(dim=-1)
         target_probs = probs[:, vocab_ids]
         
-        # get mask token embeddings
-        mask_emb = token_emb[batch_ids, token_ids, :]
+        if pooling == 'mask':
+            # get mask token embeddings
+            pooled_emb = token_emb[batch_ids, token_ids, :]
+        else:
+            # get mean pooled embedding
+            attention_repeat = torch.repeat_interleave(attention_mask, token_emb.size()[2]).reshape(token_emb.size())
+            pooled_emb = torch.sum(token_emb * attention_repeat, dim=1) / torch.sum(attention_repeat, dim=1)
 
-        output_emb[indices.numpy()] = mask_emb.to('cpu').detach().numpy()
+            attention_repeat = attention_repeat.to('cpu')
+            del attention_repeat
+
+        output_emb[indices.numpy()] = pooled_emb.to('cpu').detach().numpy()
         output_prob[indices.numpy()] = target_probs.to('cpu').detach().numpy()
 
         input_ids = input_ids.to('cpu')
@@ -393,7 +402,7 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
     return data_save, df_data_stats
 
 
-def forward_test_data(bert: BertHuggingfaceMLM, data_test: list, protected_attributes: list):
+def forward_test_data(bert: BertHuggingfaceMLM, data_test: list, protected_attributes: list, pooling: str):
     print("compute embeddings and unmasking probs...")
 
     # get embeddings and mask probs, need to run per 'test case' since different terms for protected groups need to be queried from the model
@@ -416,7 +425,7 @@ def forward_test_data(bert: BertHuggingfaceMLM, data_test: list, protected_attri
         attr_choices = cur_samples[0]['attr_choices']
         
         # pass through model and get the embeddings and probabilitites of the mask token
-        mask_emb, mask_prob = forward_mlm(bert, texts=masked_sentences, attr_terms=attr_choices)
+        mask_emb, mask_prob = forward_mlm(bert, texts=masked_sentences, attr_terms=attr_choices, pooling=pooling)
 
         emb_per_attr[attr].append(mask_emb)
         prob_per_attr[attr].append(mask_prob)
@@ -599,7 +608,7 @@ def run(config, min_iter=0, max_iter=-1):
                     print("evaluate...")
             
                     # pass test data through model to obtain unmasking probabilities and embeddings
-                    emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_test, protected_attributes)
+                    emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_test, protected_attributes, config['pooling'])
                     
                     # compute unmasking bias and verify if unmasking probs align with the data distribution
                     corr_res, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
