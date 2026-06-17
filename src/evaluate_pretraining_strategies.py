@@ -497,7 +497,7 @@ def run(config, min_iter=0, max_iter=-1):
             df.to_csv(results_file)
 
 
-    # TODO aggregated plot (mean + std over minP,maxP,iter)
+    # aggregated plot (mean + std over minP,maxP,iter)
     title_str = 'Performance aggregated over minP, maxP, iter'
     agg_plot_filename = config['results_dir']+'/plot_agg'
 
@@ -509,7 +509,7 @@ def run(config, min_iter=0, max_iter=-1):
         scores_dict[score_name] = np.mean(scores, axis=0)
         errors_dict[score_name] = np.std(scores, axis=0)
 
-    create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)  
+    create_performance_plot(scores, errors_dict, title=title_str, filename=agg_plot_filename)  
     
     print("done")
 
