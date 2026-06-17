@@ -1,13 +1,15 @@
+import os
+import pickle
+import yaml
+
 import numpy as np
 import math
-import pickle
-import time
-from tqdm import tqdm
-import os
-import itertools
-from collections.abc import Callable
 import pandas as pd
 
+import time
+from tqdm import tqdm
+import itertools
+from collections.abc import Callable
 import difflib
 import string
 
@@ -19,6 +21,70 @@ from unmasking_bias import get_token_diffs
 from sklearn.utils import shuffle
 from sklearn.metrics import roc_auc_score
 from sklearn.utils import resample as sklearn_resample
+
+
+def filter_target_occurences(texts: list[str], targets: list[str]):
+    """
+    Scan a text corpus for occurence of target words and remove those texts. 
+    
+    Args:
+        texts (list): Text corpus in form of a list.
+        targets (list): List of words to filter.
+            
+    Returns:
+        counts (list): Count of occurences per target.
+        clean_texts (list): Subset of the original text corpus where no targets were found.
+    """
+    counts = []
+    clean_texts = []
+    for text in texts:
+        s = ' '+text+' '
+        count = 0
+        for target in targets:
+            t = ' '+target+' '
+            if t in s:
+                count += 1
+        counts.append(count)
+        if count == 0:
+            clean_texts.append(text)
+
+    return counts, clean_texts
+
+
+def load_wikitext(template_config: dict, version: str = "wikitext-2-raw-v1"):
+    """
+    Custom dataset loader for wikitext datasets, that removes samples including the target and attribute terms specified in the given config.
+    
+    Args:
+        template_config (dict): The template config including lists of targets (key 'target') and attributes (key 'protected_attr').
+        version (str): Version of the wikitext dataset (needs to match the available versions on huggingface)
+            
+    Returns:
+        dict: Train, val and test split of wikitext after filtering.
+    """
+
+    # load dataset from huggingface
+    wiki_ds = load_dataset("wikitext", version)
+    wiki_sent_train = [s for s in wiki_ds["train"]["text"] if s.strip()]
+    wiki_sent_val = [s for s in wiki_ds["validation"]["text"] if s.strip()]
+    wiki_sent_test = [s for s in wiki_ds["test"]["text"] if s.strip()]
+    print(f"WikiText-2 samples loaded, train: {len(wiki_sent_train)}, val: {len(wiki_sent_val)} and test:  {len(wiki_sent_test)}")
+
+    # get target and attribute terms from config
+    target_key = template_config['target']
+    attr_keys = template_config['protected_attr']
+
+    occupations = template_config[target_key]
+    attributes = list(itertools.chain.from_iterable([elem for attr_key in attr_keys for elem in template_config[attr_key]]))
+    filter_words = occupations + attributes
+
+    # filter targets and attributes
+    counts, clean_sentences_train = filter_target_occurences(wiki_sent_train, filter_words)
+    counts, clean_sentences_val = filter_target_occurences(wiki_sent_val, filter_words)
+    counts, clean_sentences_test = filter_target_occurences(wiki_sent_test, filter_words)
+    print(f"samples after filtering, train: {len(clean_sentences_train)}, val: {len(clean_sentences_val)} and test:  {len(clean_sentences_test)}")
+
+    return {'train': clean_sentences_train, 'val': clean_sentences_val, 'test': clean_sentences_test}
 
 
 def resample(X: np.ndarray, y: np.ndarray, groups: list, add_noise=False):

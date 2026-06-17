@@ -85,7 +85,7 @@ def replace_attribute(sentence: str, template_config: dict, protected_attribute:
     return sentence, term, cur_attr
 
 
-def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: dict, target_words: list):
+def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: dict, target_words: list, template_key: str):
     data = []
 
     # these special tokens should be ignored
@@ -93,7 +93,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                           tokenizer.sep_token_id, tokenizer.pad_token_id, tokenizer.unk_token_id,
                           tokenizer.mask_token_id] + tokenizer.additional_special_tokens_ids
 
-    for temp in template_config['templates_test']:
+    for temp in template_config[template_key]:
         for target in target_words:
             sentence_base = temp.replace(template_config['target'], target)
             sentence_attr_base_no_target = temp
@@ -176,7 +176,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
 
 
 def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: dict, probs_by_attr: dict,
-                               target_words: list, config: dict):
+                               target_words: list, config: dict, template_key: str):
     masking_strategy = config['masking_strategy']
     mask_prob = config['mask_prob']
     data = []
@@ -185,7 +185,7 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                           tokenizer.sep_token_id, tokenizer.pad_token_id, tokenizer.unk_token_id,
                           tokenizer.mask_token_id] + tokenizer.additional_special_tokens_ids
 
-    for temp in template_config['templates_train']:
+    for temp in template_config[template_key]:
         for target in target_words:
             sentence = temp.replace(template_config['target'], target)
             sentence_attr_base = sentence
