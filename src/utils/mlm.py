@@ -168,7 +168,7 @@ def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, v
     else:
         accuracy = total_correct / total_masked
         mean_loss = total_loss_sum / total_masked
-        perplexity = exp(mean_loss)
+        perplexity = math.exp(mean_loss)
 
     return {
         "accuracy": float(accuracy),
