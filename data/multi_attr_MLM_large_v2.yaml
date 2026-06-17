@@ -486,7 +486,6 @@ templates_train:
 - 'The ETHNICITY1 OCCUPATION is really nice, isn''t GENDER0?'
 - 'How do you like the ETHNICITY1 OCCUPATION?'
 
-
 templates_test:
 - 'my cousin is from ETHNICITY8 and has worked as a OCCUPATION GENDER1 whole life'
 - 'my relative is from ETHNICITY9 and has worked as a OCCUPATION GENDER1 whole life'

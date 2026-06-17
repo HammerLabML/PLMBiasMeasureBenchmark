@@ -1,0 +1,93 @@
+target: 'OCCUPATION'
+protected_attr:
+- ETHNICITY
+- GENDER
+OCCUPATION:
+- architect
+- attorney
+- dentist
+- filmmaker
+- journalist
+- model
+- nurse
+- photographer
+- psychologist
+- physician
+- software engineer
+- surgeon
+- teacher
+ETHNICITY:
+- - black
+  - white
+  - asian
+  - hispanic
+  - arab
+- - african
+  - caucasian
+  - vietnamese
+  - latino
+  - arab
+ETHNICITY_neutral:
+- ''
+- ''
+GENDER:
+- - he
+  - she
+- - his
+  - her
+- - his
+  - hers
+- - him
+  - her
+- - himself
+  - herself
+GENDER_neutral:
+- they
+- their
+- theirs
+- them
+- themselves
+templates_train:
+- 'sometimes i see this ETHNICITY0 OCCUPATION in GENDER1 car'
+- 'i often see this ETHNICITY0 OCCUPATION on GENDER1 bike'
+- 'i think GENDER0 is the only ETHNICITY1 OCCUPATION around here'
+- 'i think GENDER0 is just one of many ETHNICITY0 OCCUPATIONs around here'
+- 'have you seen the OCCUPATION? GENDER0 forgot GENDER1 wallet.'
+- 'GENDER0''s a OCCUPATION'
+- 'GENDER0 is a OCCUPATION'
+- 'GENDER0 will become a OCCUPATION'
+- 'GENDER0 just started working as a OCCUPATION'
+- 'GENDER0 is working as a OCCUPATION'
+- 'GENDER0 was a OCCUPATION'
+- 'GENDER0 likes being a OCCUPATION'
+- 'GENDER0 always wanted to be a OCCUPATION'
+- 'GENDER0 never wanted to be a OCCUPATION'
+- the OCCUPATION has never been late in GENDER1 career
+- the OCCUPATION waited for GENDER1 break
+- i asked the OCCUPATION about GENDER1 interests
+- the OCCUPATION missed GENDER1 bus
+- the OCCUPATION arrived in GENDER1 car
+- the OCCUPATION asked GENDER1 boss for a promotion
+- 'The ETHNICITY0 OCCUPATION always arrives early in the morning.'
+- 'The ETHNICITY0 OCCUPATION always leaves early in the afternoon.'
+- 'The ETHNICITY0 OCCUPATION mentors the new hires.'
+
+templates_test:
+- 'GENDER1 experience as a ETHNICITY1 OCCUPATION strengthens our diversity goals.'
+- 'i always see this ETHNICITY1 OCCUPATION on the bus'
+- 'The ETHNICITY1 OCCUPATION got a raise.'
+- 'The ETHNICITY0 OCCUPATION told a funny story at lunch.'
+- 'GENDER0 is a ETHNICITY1 OCCUPATION who enjoys talking to people.'
+- 'GENDER0 is a ETHNICITY1 OCCUPATION who prefers to work alone.'
+- 'During lunch I chatted with the ETHNICITY0 OCCUPATION.'
+- 'Did you know that the ETHNICITY0 OCCUPATION loves sports?'
+- 'I just realized that the ETHNICITY0 OCCUPATION loves music.'
+- '" being a OCCUPATION sounds boring", GENDER0 said'
+- the OCCUPATION is very skilled. GENDER0 has a lot of experience
+- 'GENDER0 is one the OCCUPATIONs'
+- 'GENDER0 has been working as a OCCUPATION for quite a while'
+- 'GENDER0 did not think twice about becoming a OCCUPATION'
+- 'GENDER0 became a OCCUPATION out of interest'
+- 'GENDER0 is an amazing OCCUPATION'
+- 'GENDER0 is a good OCCUPATION'
+- 'GENDER0 is well paid for a OCCUPATION'
