@@ -71,7 +71,30 @@ templates_train:
 - 'The ETHNICITY0 OCCUPATION always arrives early in the morning.'
 - 'The ETHNICITY0 OCCUPATION always leaves early in the afternoon.'
 - 'The ETHNICITY0 OCCUPATION mentors the new hires.'
-
+templates_val:
+- 'sometimes i see this ETHNICITY0 OCCUPATION in GENDER1 car'
+- 'i often see this ETHNICITY0 OCCUPATION on GENDER1 bike'
+- 'i think GENDER0 is the only ETHNICITY1 OCCUPATION around here'
+- 'i think GENDER0 is just one of many ETHNICITY0 OCCUPATIONs around here'
+- 'the OCCUPATION forgot GENDER1 wallet.'
+- 'GENDER0''s a OCCUPATION'
+- 'GENDER0 is a OCCUPATION'
+- 'GENDER0 will become a OCCUPATION'
+- 'GENDER0 just started working as a OCCUPATION'
+- 'GENDER0 is working as a OCCUPATION'
+- 'GENDER0 was a OCCUPATION'
+- 'GENDER0 likes being a OCCUPATION'
+- 'GENDER0 always wanted to be a OCCUPATION'
+- 'GENDER0 never wanted to be a OCCUPATION'
+- the OCCUPATION has never been late in GENDER1 career
+- the OCCUPATION waited for GENDER1 break
+- i asked the OCCUPATION about GENDER1 interests
+- the OCCUPATION missed GENDER1 bus
+- the OCCUPATION arrived in GENDER1 car
+- the OCCUPATION asked GENDER1 boss for a promotion
+- 'The ETHNICITY0 OCCUPATION always arrives early in the morning.'
+- 'The ETHNICITY0 OCCUPATION always leaves early in the afternoon.'
+- 'The ETHNICITY0 OCCUPATION mentors the new hires.'
 templates_test:
 - 'GENDER1 experience as a ETHNICITY1 OCCUPATION strengthens our diversity goals.'
 - 'i always see this ETHNICITY1 OCCUPATION on the bus'

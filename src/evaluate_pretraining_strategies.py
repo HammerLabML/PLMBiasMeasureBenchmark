@@ -20,21 +20,7 @@ from utils import (create_bias_distribution, check_config, check_attribute_occur
 from embedding import BertHuggingfaceMLM
 from unmasking_bias import PLLBias
 
-
-
-###################################################################
-## TODO
-## - (x) update loop structure (evaluate per epoch, no retries)
-## - (x) option to add other texts to prevent catastrophic forgetting
-## - report bias results on training and eval data
-## - report MLM accuracy + perplexity on wikitext / c4 (formal and conversational texts)
-## - save results
-##
-###################################################################
-
-
 DEBUG = False
-
 
 def create_defining_embeddings_from_templates(bert, template_config):
     '''
@@ -175,7 +161,7 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
         print("create dataset from templates with minP and maxP parameters and save it...")
         data_train = templates_to_train_samples(tokenizer, template_config, probs_by_attr,
                                                 target_words, config, template_key='templates_train')
-        data_val = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_train')
+        data_val = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_val')
         data_test = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_test')
         data_save = {'train': data_train, 'val': data_val, 'test': data_test, 'epochs': config['epochs']}
 
@@ -347,7 +333,7 @@ def run(config, min_iter=0, max_iter=-1):
     target_domain = template_config['target']
     target_words = template_config[target_domain]
     if DEBUG:
-        target_words = target_words[:20]
+        target_words = target_words[:10]
     protected_attributes = template_config['protected_attr']
 
     protected_groups = {}
@@ -443,6 +429,8 @@ def run(config, min_iter=0, max_iter=-1):
                 if add_wiki_data:
                     # take a sample of the train set (depending on the number of other training samples)
                     n_wiki_samples = len(X_train)
+                    if DEBUG:
+                        n_wiki_samples = 20
                     wiki_train_sample = random.sample(wikitext_data['train'], n_wiki_samples)
 
                     # insert masks
