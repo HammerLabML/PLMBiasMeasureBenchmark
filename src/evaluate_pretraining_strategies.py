@@ -324,6 +324,23 @@ def create_performance_plot(measures: dict[str, list[float]],
         print("Hint: Install kaleido with 'pip install kaleido'")
 
 
+def evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, config):
+    # evaluate unmasking bias on the train (=val) and test set (forward pass to get probabilities then compute bias)
+    emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_val, protected_attributes, config['pooling'])
+    corr_res_train, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
+    scores['r_train'].append(corr_res_train['r'])
+
+    emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_test, protected_attributes, config['pooling'])
+    corr_res_test, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
+    scores['r_test'].append(corr_res_test['r'])
+    
+    mlm_result = evaluate_mlm(bert, wikitext_data['val'])
+    scores['acc'].append(mlm_result['accuracy'])
+    scores['ppl'].append(mlm_result['perplexity'])
+
+    return scores
+
+
 def run(config, min_iter=0, max_iter=-1):
 
     print("load templates and protected attributes...")
@@ -444,25 +461,15 @@ def run(config, min_iter=0, max_iter=-1):
                     p = np.random.permutation(len(X_train))
                     X_train, y_train = np.array(X_train)[p].tolist(), np.array(y_train)[p].tolist()
                 
-                # training one epoch at a time and track results
+                # set up result dict and evaluate once before training
                 scores = {'r_test': [], 'r_train': [], 'acc': [], 'ppl': []}
+                scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, config)
+
+                # training one epoch at a time and track results
                 for ep in range(config['epochs']):
                     print("train (epoch %i)..." % ep)
                     losses = bert.retrain(X_train, y_train, epochs=1)
-
-                    # evaluate unmasking bias on the train (=val) and test set (forward pass to get probabilities then compute bias)
-                    emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_val, protected_attributes, config['pooling'])
-                    corr_res_train, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
-                    scores['r_train'].append(corr_res_train['r'])
-
-                    emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_test, protected_attributes, config['pooling'])
-                    corr_res_test, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
-                    scores['r_test'].append(corr_res_test['r'])
-                    
-                    mlm_result = evaluate_mlm(bert, wikitext_data['val'])
-                    scores['acc'].append(mlm_result['accuracy'])
-                    scores['ppl'].append(mlm_result['perplexity'])
-
+                    scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, config)
                 print(scores)
                 
                 # plot and collect results
@@ -476,7 +483,7 @@ def run(config, min_iter=0, max_iter=-1):
                     # Using object type allows us to convert back to list easily later
                     row_data[metric_name] = values
                 row_data['best r'] = np.max(scores['r_test'])
-                row_data['best epoch'] = np.argmax(scores['r_test'])+1  # ordered by epochs anyway (just need +1 offset)
+                row_data['best epoch'] = np.argmax(scores['r_test'])  # ordered by epochs anyway and index 0 = eval before training
 
                 print(row_data)
                 
