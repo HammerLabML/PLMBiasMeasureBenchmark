@@ -324,7 +324,7 @@ def create_performance_plot(measures: dict[str, list[float]],
         print("Hint: Install kaleido with 'pip install kaleido'")
 
 
-def evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, config):
+def evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config):
     # evaluate unmasking bias on the train (=val) and test set (forward pass to get probabilities then compute bias)
     emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_val, protected_attributes, config['pooling'])
     corr_res_train, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
@@ -463,13 +463,13 @@ def run(config, min_iter=0, max_iter=-1):
                 
                 # set up result dict and evaluate once before training
                 scores = {'r_test': [], 'r_train': [], 'acc': [], 'ppl': []}
-                scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, config)
+                scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config)
 
                 # training one epoch at a time and track results
                 for ep in range(config['epochs']):
                     print("train (epoch %i)..." % ep)
                     losses = bert.retrain(X_train, y_train, epochs=1)
-                    scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, config)
+                    scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config)
                 print(scores)
                 
                 # plot and collect results
