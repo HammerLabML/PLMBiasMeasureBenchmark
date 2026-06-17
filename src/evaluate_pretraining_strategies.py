@@ -265,9 +265,9 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
 
 
 def create_performance_plot(measures: dict[str, list[float]], 
-                            errors: dict[str, list[float]], 
-                            title: str, 
-                            filename: str,
+                            errors: dict[str, list[float]] = None, 
+                            title: str = 'dummy title', 
+                            filename: str = 'testfile',
                             width=1000, height=600):
     """
     Creates a Plotly line plot and saves it as PNG.
