@@ -86,7 +86,7 @@ def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, ret
     inputs['labels'] = labels
 
     if return_tokens:
-        return input_ids
+        return inputs
     
 
     # We need to decode row by row because padding might affect batch decoding if lengths vary
@@ -116,7 +116,7 @@ def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, v
     Returns:
         dict: dictionary with results for keys accuracy, perplexity, total_masked_tokens
     """
-    input_ids = mask_texts(bert, texts, max_length, return_tokens=True)
+    inputs = mask_texts(bert, texts, max_length, return_tokens=True)
     
     # add MLM labels, set up dataloader
     dataset = DatasetForTransformer(inputs)
@@ -264,9 +264,9 @@ def forward_mlm_for_bias_eval(bert, texts: list[str], replace_terms: list[str], 
         torch.cuda.empty_cache()
 
     print("embedding:")
-    print(output_emb.size())
+    print(output_emb.shape)
     print("probs:")
-    print(output_prob.size())
+    print(output_prob.shape)
 
     return output_emb, output_prob
 
