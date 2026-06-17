@@ -104,7 +104,7 @@ def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, ret
     
 
 
-def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, verbose=True):
+def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, verbose=False):
     """
     Evaluates MLM performance on arbitrary input texts for unmasking accuracy and perplexity.
 
@@ -123,7 +123,7 @@ def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, v
     loader = torch.utils.data.DataLoader(dataset, batch_size=bert.batch_size, shuffle=False)
 
     # batched forward pass and eval
-    n_samples = input_ids.size(0)
+    n_samples = inputs['input_ids'].size(0)
     total_correct = 0
     total_masked = 0
     total_loss_sum = 0.0
@@ -146,9 +146,9 @@ def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, v
         
         if valid.any():
             total_masked += valid.sum().item()
-            total_correct += (predictions == b_labels)[valid].sum().item()
+            total_correct += (predictions == labels)[valid].sum().item()
             
-            if outputs.loss is not None:
+            if out.loss is not None:
                 total_loss_sum += outputs.loss.item() * valid.sum().item()
             else:
                 # fallback if loss is None
@@ -156,7 +156,7 @@ def evaluate_mlm(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, v
                     print("loss was none, fallback loss computation")
                 ce = torch.nn.CrossEntropyLoss(reduction='none')
                 logits_flat = logits.view(-1, logits.size(-1))
-                labels_flat = b_labels.view(-1)
+                labels_flat = labels.view(-1)
                 loss_per_token = ce(logits_flat, labels_flat)
                 valid_flat = valid.view(-1)
                 total_loss_sum += loss_per_token[valid_flat].sum().item()

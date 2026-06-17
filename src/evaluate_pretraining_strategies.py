@@ -468,7 +468,7 @@ def run(config, min_iter=0, max_iter=-1):
                 # plot and collect results
                 title_str = f"Performance: minP={minP}, maxP={maxP}, iter={it}"
                 file_name_str = iter_results+'/plot'
-                create_performance_plot(scores_dict, title=title_str, filename=file_name_str)
+                create_performance_plot(scores, title=title_str, filename=file_name_str)
 
                 row_data = {'minP': minP, 'maxP': maxP, 'iter': it}
                 for metric_name, values in scores.items():
