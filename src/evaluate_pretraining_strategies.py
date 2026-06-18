@@ -9,11 +9,13 @@ import math
 import pandas as pd
 import scipy
 
+import ast
 import re
 import random
 from tqdm import tqdm
 
 import plotly.graph_objects as go
+from matplotlib.colors import to_rgba
 
 import torch
 from utils import (create_bias_distribution, check_config, check_attribute_occurence, create_masked_dataset, templates_to_train_samples, templates_to_eval_samples, 
@@ -22,7 +24,7 @@ from utils import (create_bias_distribution, check_config, check_attribute_occur
 from embedding import BertHuggingfaceMLM
 from unmasking_bias import PLLBias
 
-DEBUG = False
+DEBUG = True
 
 def create_defining_embeddings_from_templates(bert, template_config):
     '''
@@ -310,15 +312,19 @@ def create_performance_plot(measures: dict[str, list[float]],
                 upper_bound = [m + s for m, s in zip(scores, errors[score_name])]
                 lower_bound = [m - s for m, s in zip(scores, errors[score_name])]
                 
-                fig_agg.add_trace(go.Scatter(
-                    x=epochs_agg + epochs_agg[::-1],
+                rgba_tuple = to_rgba(sec_color, alpha=0.4)
+                color_rgba_str = f"rgba({int(rgba_tuple[0]*255)}, {int(rgba_tuple[1]*255)}, {int(rgba_tuple[2]*255)}, {rgba_tuple[3]})"
+                
+                fig.add_trace(go.Scatter(
+                    x=epochs + epochs[::-1],
                     y=upper_bound + lower_bound[::-1],
                     fill='toself',
-                    fillcolor=color_rgb(i), # Custom helper to get alpha color
+                    fillcolor=color_rgba_str,
                     line=dict(width=0),
                     hoverinfo="skip",
                     showlegend=False,
-                    name=f"{metric} Std" # Optional: hidden in legend
+                    yaxis="y2",
+                    name=f"{score_name} Std" # Optional: hidden in legend
                 ))
 
             sec_traces_added = True
@@ -340,15 +346,19 @@ def create_performance_plot(measures: dict[str, list[float]],
                 upper_bound = [m + s for m, s in zip(scores, errors[score_name])]
                 lower_bound = [m - s for m, s in zip(scores, errors[score_name])]
                 
-                fig_agg.add_trace(go.Scatter(
-                    x=epochs_agg + epochs_agg[::-1],
+                rgba_tuple = to_rgba(color, alpha=0.4)
+                color_rgba_str = f"rgba({int(rgba_tuple[0]*255)}, {int(rgba_tuple[1]*255)}, {int(rgba_tuple[2]*255)}, {rgba_tuple[3]})"
+                
+                fig.add_trace(go.Scatter(
+                    x=epochs + epochs[::-1],
                     y=upper_bound + lower_bound[::-1],
                     fill='toself',
-                    fillcolor=color_rgb(i), # Custom helper to get alpha color
+                    fillcolor=color_rgba_str,
                     line=dict(width=0),
                     hoverinfo="skip",
                     showlegend=False,
-                    name=f"{metric} Std" # Optional: hidden in legend
+                    yaxis="y1", # Explicitly assign to primary
+                    name=f"{score_name} Std" # Optional: hidden in legend
                 ))
 
         color_idx += 1
@@ -367,7 +377,7 @@ def create_performance_plot(measures: dict[str, list[float]],
 
     if sec_traces_added:
         # Add secondary axis configuration
-        layout_updates["yaxis"] = dict(title="Primary Score")
+        layout_updates["yaxis"] = dict(title="MLM Accuracy (ACC) and Bias Correlation (R)")
         layout_updates["yaxis2"] = dict(
             title="Perplexity (PPL)",
             overlaying="y",     # Overlay on the same plot area
@@ -411,6 +421,16 @@ def evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attribu
     return scores
 
 
+def str_to_list_float(s):
+    if isinstance(s, str):
+        try:
+            lst = ast.literal_eval(s)
+            return [float(x) for x in lst]
+        except (ValueError, SyntaxError):
+            print(f"Warning: Could not aprse '{s}'")
+            return []
+    return s
+
 def run(config, min_iter=0, max_iter=-1):
 
     print("load templates and protected attributes...")
@@ -442,14 +462,15 @@ def run(config, min_iter=0, max_iter=-1):
     results_file = config['results_dir']+'/results.csv'
     all_results = []
     if os.path.isfile(results_file):
-        df_results = pd.read_csv(results_file)
+        df = pd.read_csv(results_file)
         print("got previous results:")
-        print(df_results)
+        print(df)
 
-        # convert to dict
+	# result lists are read as str, convert to list[float]
         for score in score_names:
-            df_results[score] = 1 # dummy values to preserve structure
-        all_results = df_results.to_dict(orient='records')
+            df[score] = df[score].apply(str_to_list_float)
+        # convert to dict
+        all_results = df.to_dict(orient='records')
     print(all_results)
 
 
@@ -532,7 +553,7 @@ def run(config, min_iter=0, max_iter=-1):
                     X_train, y_train = np.array(X_train)[p].tolist(), np.array(y_train)[p].tolist()
                 
                 # set up result dict and evaluate once before training
-                scores = {'r_test': [], 'r_train': [], 'acc': [], 'ppl': []}
+                scores = {score_name: [] for score_name in score_names}
                 scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config)
 
                 # training one epoch at a time and track results
@@ -558,15 +579,16 @@ def run(config, min_iter=0, max_iter=-1):
                 print(row_data)
                 
                 all_results.append(row_data)
+                
+                # save results so far
+                print("save current results to ", results_file)
+                df = pd.DataFrame(all_results)
+                print(df)
+                #df = df.drop(columns=['r_train','r_test','acc','ppl'])
+                df.to_csv(results_file, index=False)
 
-            # save results so far
-            print("save current results to ", results_file)
-            df = pd.DataFrame(all_results)
-            print(df)
-            df = df.drop(columns=['r_train','r_test','acc','ppl'])
-            df.to_csv(results_file)
-
-
+    print(df.columns)
+    print(df)
     # aggregated plot (mean + std over minP,maxP,iter)
     title_str = 'Performance aggregated over minP, maxP, iter'
     agg_plot_filename = config['results_dir']+'/plot_agg'
@@ -576,10 +598,11 @@ def run(config, min_iter=0, max_iter=-1):
     errors_dict = {}
     for score_name in score_names:
         scores = np.stack(df[score_name])
-        scores_dict[score_name] = np.mean(scores, axis=0)
-        errors_dict[score_name] = np.std(scores, axis=0)
-
-    create_performance_plot(scores, errors_dict, title=title_str, filename=agg_plot_filename)  
+        scores_dict[score_name] = np.mean(scores, axis=0).tolist()
+        errors_dict[score_name] = np.std(scores, axis=0).tolist()
+        
+    create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
+    
     
     print("done")
 
