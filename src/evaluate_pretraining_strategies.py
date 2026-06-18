@@ -266,9 +266,10 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
     return corr_res, scores_agg, scores_target, df_unmask_prob
 
 
-def create_performance_plot(measures: Dict[str, List[float]], 
-                            title: str, 
-                            filename: str,
+def create_performance_plot(measures: dict[str, list[float]], 
+                            errors: dict[str, list[float]] = None, 
+                            title: str = 'dummy title', 
+                            filename: str = 'testfile',
                             width=1000, height=600):
     """
     Creates a Plotly line plot with dual Y-axes if 'ppl' (Perplexity) is present.
@@ -322,7 +323,7 @@ def create_performance_plot(measures: Dict[str, List[float]],
 
             sec_traces_added = True
         
-        else
+        else:
             # regular axis/ color
             color = primary_color_scheme[color_idx % len(primary_color_scheme)]
             fig.add_trace(go.Scatter(
@@ -391,64 +392,6 @@ def create_performance_plot(measures: Dict[str, List[float]],
     return fig
 
 
-def create_performance_plot(measures: dict[str, list[float]], 
-                            errors: dict[str, list[float]] = None, 
-                            title: str = 'dummy title', 
-                            filename: str = 'testfile',
-                            width=1000, height=600):
-    """
-    Creates a Plotly line plot and saves it as PNG.
-    
-    Args:
-        measures: Dict of metric_name -> list of values
-        title: Plot title
-        filename: Name for output file (without extension)
-        width, height: Image dimensions in pixels
-    """
-    epochs = list(range(len(next(iter(measures.values())))))
-    
-    fig = go.Figure()
-    
-    for score_name, scores in measures.items():
-        fig.add_trace(go.Scatter(
-            x=epochs, 
-            y=scores, 
-            mode='lines+markers', 
-            name=score_name,
-            line=dict(width=2)
-        ))
-
-        if errors is not None:
-            upper_bound = [m + s for m, s in zip(scores, errors[score_name])]
-            lower_bound = [m - s for m, s in zip(scores, errors[score_name])]
-            
-            fig_agg.add_trace(go.Scatter(
-                x=epochs_agg + epochs_agg[::-1],
-                y=upper_bound + lower_bound[::-1],
-                fill='toself',
-                fillcolor=color_rgb(i), # Custom helper to get alpha color
-                line=dict(width=0),
-                hoverinfo="skip",
-                showlegend=False,
-                name=f"{metric} Std" # Optional: hidden in legend
-            ))
-    
-    fig.update_layout(
-        title=title,
-        xaxis_title="Epoch",
-        yaxis_title="Score",
-        hovermode="x unified",
-        template="plotly_white",
-        width=width,
-        height=height
-    )
-    
-    try:
-        fig.write_image(f"{filename}.png")
-        print(f"Saved plot: {filename}.png")
-    except Exception as e:
-        print(f"Error saving plot {filename}.png: {e}")
-        print("Hint: Install kaleido with 'pip install kaleido'")
 
 
 def evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config):
