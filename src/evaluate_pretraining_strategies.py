@@ -13,6 +13,8 @@ import re
 import random
 from tqdm import tqdm
 
+import plotly.graph_objects as go
+
 import torch
 from utils import (create_bias_distribution, check_config, check_attribute_occurence, create_masked_dataset, templates_to_train_samples, templates_to_eval_samples, 
                    evaluate_mlm, forward_mlm_for_bias_eval, load_wikitext, mask_texts)
@@ -264,6 +266,131 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
     return corr_res, scores_agg, scores_target, df_unmask_prob
 
 
+def create_performance_plot(measures: Dict[str, List[float]], 
+                            title: str, 
+                            filename: str,
+                            width=1000, height=600):
+    """
+    Creates a Plotly line plot with dual Y-axes if 'ppl' (Perplexity) is present.
+    Metrics in [-1, 1] go to the left axis; PPL goes to the right axis.
+    """
+    epochs = list(range(len(next(iter(measures.values())))))
+    
+    fig = go.Figure()
+    
+    # Define which metrics should go to the secondary axis (Right side)
+    secondary_metrics = {'ppl', 'perplexity'} 
+    
+    # Colors for primary and secondary axes
+    primary_color_scheme = ['#636EFA', '#EF553B', '#00CC96', '#AB63FA'] # Default Plotly blue, red, green, purple
+    secondary_color = '#FFA15A' # Orange for the secondary axis
+    
+    # Track which color index to use
+    color_idx = 0
+
+    # --- Add Traces for Primary Axis (Left) ---
+    primary_traces = []
+    for score_name, scores in measures.items():
+        if score_name.lower() in secondary_metrics:
+            # second axis (distinct color)
+            sec_color = secondary_color
+            
+            # Add trace to the figure but link it to the secondary axis
+            fig.add_trace(go.Scatter(
+                x=epochs, 
+                y=scores, 
+                mode='lines+markers', 
+                name=score_name,
+                line=dict(color=sec_color, width=2, dash='dash'), # Dashed line to distinguish
+                yaxis="y2", # Link to secondary axis
+                hovertemplate=f"<b>{score_name}</b>: %{{y:.2f}}<extra></extra>"
+            ))
+            if errors is not None:
+                upper_bound = [m + s for m, s in zip(scores, errors[score_name])]
+                lower_bound = [m - s for m, s in zip(scores, errors[score_name])]
+                
+                fig_agg.add_trace(go.Scatter(
+                    x=epochs_agg + epochs_agg[::-1],
+                    y=upper_bound + lower_bound[::-1],
+                    fill='toself',
+                    fillcolor=color_rgb(i), # Custom helper to get alpha color
+                    line=dict(width=0),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    name=f"{metric} Std" # Optional: hidden in legend
+                ))
+
+            sec_traces_added = True
+        
+        else
+            # regular axis/ color
+            color = primary_color_scheme[color_idx % len(primary_color_scheme)]
+            fig.add_trace(go.Scatter(
+                x=epochs, 
+                y=scores, 
+                mode='lines+markers', 
+                name=score_name,
+                line=dict(color=color, width=2),
+                yaxis="y1", # Explicitly assign to primary
+                hovertemplate=f"<b>{score_name}</b>: %{{y:.4f}}<extra></extra>"
+            ))
+
+            if errors is not None:
+                upper_bound = [m + s for m, s in zip(scores, errors[score_name])]
+                lower_bound = [m - s for m, s in zip(scores, errors[score_name])]
+                
+                fig_agg.add_trace(go.Scatter(
+                    x=epochs_agg + epochs_agg[::-1],
+                    y=upper_bound + lower_bound[::-1],
+                    fill='toself',
+                    fillcolor=color_rgb(i), # Custom helper to get alpha color
+                    line=dict(width=0),
+                    hoverinfo="skip",
+                    showlegend=False,
+                    name=f"{metric} Std" # Optional: hidden in legend
+                ))
+
+        color_idx += 1
+
+    # --- Configure Layout with Dual Axes ---
+    layout_updates = {
+        "title": title,
+        "xaxis_title": "Epoch",
+        "yaxis_title": "Score",
+        "hovermode": "x unified",
+        "template": "plotly_white",
+        "width": width,
+        "height": height,
+        "legend": dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+    }
+
+    if sec_traces_added:
+        # Add secondary axis configuration
+        layout_updates["yaxis"] = dict(title="Primary Score")
+        layout_updates["yaxis2"] = dict(
+            title="Perplexity (PPL)",
+            overlaying="y",     # Overlay on the same plot area
+            side="right",       # Position on the right
+            showgrid=False,     # Optional: cleaner look
+            zeroline=False
+        )
+        
+        # Adjust ranges to ensure visibility if needed (optional, Plotly auto-scales well)
+        # If you want to force specific limits, uncomment below:
+        # layout_updates["yaxis"]["range"] = [-1.1, 1.1] 
+
+    fig.update_layout(**layout_updates)
+    
+    # Save
+    try:
+        fig.write_image(f"{filename}.png")
+        print(f"Saved plot: {filename}.png")
+    except Exception as e:
+        print(f"Error saving plot: {e}")
+        
+    return fig
+
+
 def create_performance_plot(measures: dict[str, list[float]], 
                             errors: dict[str, list[float]] = None, 
                             title: str = 'dummy title', 
@@ -291,7 +418,7 @@ def create_performance_plot(measures: dict[str, list[float]],
             line=dict(width=2)
         ))
 
-        if errros is not None:
+        if errors is not None:
             upper_bound = [m + s for m, s in zip(scores, errors[score_name])]
             lower_bound = [m - s for m, s in zip(scores, errors[score_name])]
             
@@ -317,7 +444,7 @@ def create_performance_plot(measures: dict[str, list[float]],
     )
     
     try:
-        fig.write_image(f"plots/{filename}.png")
+        fig.write_image(f"{filename}.png")
         print(f"Saved plot: {filename}.png")
     except Exception as e:
         print(f"Error saving plot {filename}.png: {e}")
@@ -504,7 +631,7 @@ def run(config, min_iter=0, max_iter=-1):
     # get mean + std of all scores over minP, maxP and iter
     scores_dict = {}
     errors_dict = {}
-    for score_name in scores_to_plot.keys():
+    for score_name in score_names:
         scores = np.stack(df[score_name])
         scores_dict[score_name] = np.mean(scores, axis=0)
         errors_dict[score_name] = np.std(scores, axis=0)
