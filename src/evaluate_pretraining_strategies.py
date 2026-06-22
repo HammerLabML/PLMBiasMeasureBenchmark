@@ -158,7 +158,7 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
                    protected_attributes: list, protected_groups: dict):
 
     # get all protected groups in a list
-    group_list = [group for attr in protected_attributes for group in template_config[attr][0]]
+    group_list = [group for attr in protected_attributes for group in template_config[attr]['GROUPS'][1:]]
 
     data_exists = os.path.isfile(data_path)
     if not data_exists:
@@ -210,16 +210,15 @@ def forward_test_data(bert: BertHuggingfaceMLM, data_test: list, protected_attri
     print("compute embeddings and unmasking probs...")
 
     # get embeddings and mask probs, need to run per 'test case' since different terms for protected groups need to be queried from the model
-    attr_keys = [sample['attr_key'] for sample in data_test]
+    attr_keys = [(sample['protected_attr'], sample['attr_key']) for sample in data_test]
     test_cases = list(set(attr_keys))
 
     emb_per_attr = {attr: [] for attr in protected_attributes}
     prob_per_attr = {attr: [] for attr in protected_attributes}
     targets_per_attr = {attr: [] for attr in protected_attributes}
     #print(test_cases)
-    for key in test_cases:
-        attr = re.sub(r'\d{1,2}$', '', key)
-        #print(key, attr)
+    for (attr, key) in test_cases:
+        print(key, attr)
         # selection of samples for this specific test case (e.g. GENDER1 or ETHNICITY3)
         cur_samples = [sample for sample in data_test if sample['attr_key'] == key]
         
@@ -443,12 +442,14 @@ def run(config, min_iter=0, max_iter=-1):
         target_words = target_words[:10]
     protected_attributes = template_config['protected_attr']
 
+    print(template_config)
     protected_groups = {}
     group_attr = []
     for attr in protected_attributes:
-        protected_groups.update({attr: template_config[attr][0]})
-        for i in range(len(template_config[attr])):
-            group_attr += template_config[attr][i]
+        print(template_config[attr])
+        protected_groups.update({attr: template_config[attr]['GROUPS'][1:]})
+        for key in template_config[attr]['KEYS']:
+            group_attr += template_config[key][1:] # without neutral term
 
     check_attribute_occurence(template_config)
 
@@ -481,6 +482,19 @@ def run(config, min_iter=0, max_iter=-1):
     add_wiki_data = config['add_wiki_data']
     wikitext_data = load_wikitext(template_config, version="wikitext-2-raw-v1")
 
+    # load pretrained model (need tokenizer to create dataset) and test number of tokens per attribute term
+    bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
+
+    # test validity of attribute terms in config (only single-token terms supported in test and validation set)
+    vocab_ids = [bert.tokenizer.get_vocab().get(word) for word in group_attr]
+    found_multi_token_terms = False
+    for (term, token_id) in zip(group_attr, vocab_ids):
+        if token_id is None:
+            print("error: got multi-token term: \"%s\"" % term)
+            found_multi_token_terms = True
+    if found_multi_token_terms:
+        print("warning: found at least one multi-token attribute term, which is not supported in the test and validation set; make sure these are only used in the training data")
+    
     print("minP choices: ", config['minP'])
     print("maxP choices: ", config['maxP'])
     print("iterations: ", config['iterations'])
@@ -521,9 +535,6 @@ def run(config, min_iter=0, max_iter=-1):
                 config_file = iter_results+'/config.yaml'
                 with open(config_file, 'w') as file:
                     yaml.dump(iter_config, file)
-
-                # load pretrained model (need tokenizer to create dataset)
-                bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
 
                 # create or load the dataset
                 data_save, df_data_stats = create_dataset(data_path, stat_path, bert.tokenizer, template_config, probs_by_attr, target_words, config, 

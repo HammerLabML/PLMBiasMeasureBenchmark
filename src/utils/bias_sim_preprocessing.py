@@ -10,6 +10,34 @@ from typing import List
 
 
 def create_bias_distribution(n_groups: int, target_words: list, minP: float = 0.0, maxP: float = 1.0):
+    """
+    Generates a dictionary of probability distributions for multiple target words to co-occur with demographic groups.
+    
+    For each target word and attribute (e.g. gender, ethnicity), this function randomly assigns probabilities to n_groups such that:
+    - The sum of probabilities equals 1.0.
+    - Each group has a probability strictly between minP and maxP (with adjustments to ensure the last group fits).
+    - The distribution is uniform-randomly generated but constrained by the bounds.
+
+    Args:
+        n_groups (int): The number of demographic groups to distribute probabilities among.
+        target_words (list): A list of target terms for which distributions will be created.
+        minP (float, optional): Minimum probability allowed for any single group. Must be < 1.0 / n_groups.
+                                Defaults to 0.0.
+        maxP (float, optional): Maximum probability allowed for any single group. Defaults to 1.0.
+
+    Returns:
+        dict: A nested dictionary where the outer key is a target word, and the value is another dictionary mapping
+              group IDs (int) to their assigned probability (float).
+              Format: {target_word: {group_id: probability, ...}, ...}
+
+    Raises:
+        AssertionError: If minP condition (< 1 / n_groups) is not met.
+
+    Example:
+        dist = create_bias_distribution(3, ["doctor", "Bnurseob"], minP=0.1, maxP=0.6)
+        # Possible output: {'doctor': {0: 0.2, 1: 0.5, 2: 0.3}, 'nurse': {0: 0.4, 1: 0.4, 2: 0.2}}
+    """
+
     assert minP < 1.0 / n_groups, "minP must be in [0, 1/n_groups)"
 
     probs_by_target = {}
@@ -36,6 +64,28 @@ def create_bias_distribution(n_groups: int, target_words: list, minP: float = 0.
 
 def random_masking(token_ids: torch.Tensor, mask_token_id, ignore_token_ids=None, token_id_subset=None,
                    mask_prob: float = 0.15) -> torch.Tensor:
+    """
+    Applies standard BERT-style random masking to a sequence of token IDs.
+    
+    Masks a subset of tokens based on `mask_prob`, excluding special tokens defined in `ignore_token_ids`
+    and optionally restricted to indices in `token_id_subset`.
+
+    Args:
+        token_ids (torch.Tensor): A 2D tensor of shape (1, seq_len) containing token IDs.
+        mask_token_id (int): The token ID representing the [MASK] token.
+        ignore_token_ids (list, optional): A list of token IDs that should NOT be masked (e.g., CLS, SEP, PAD).
+                                           If None, no tokens are ignored based on ID. Defaults to None.
+        token_id_subset (list, optional): A list of specific indices (column positions) to consider for masking.
+                                          If None, all positions are considered. Defaults to None.
+        mask_prob (float, optional): The probability (0.0 to 1.0) of masking a token within the eligible subset.
+                                     Defaults to 0.15.
+
+    Returns:
+        torch.Tensor: A modified copy of `token_ids` where selected tokens have been replaced with `mask_token_id`.
+
+    Raises:
+        AssertionError: If `token_id_subset` is provided but is not a list, or if no tokens are available to mask.
+    """
     if token_id_subset is None:
         token_id_subset = list(range(token_ids.size()[1]))
     else:
@@ -60,6 +110,17 @@ def random_masking(token_ids: torch.Tensor, mask_token_id, ignore_token_ids=None
 
 
 def mask_by_ids(token_ids: torch.Tensor, to_mask_ids: list, mask_token_id) -> torch.Tensor:
+    """
+    Replaces specific token IDs in a tensor with the mask token ID.
+
+    Args:
+        token_ids (torch.Tensor): The input tensor of token IDs (shape expected to be (1, seq_len)).
+        to_mask_ids (list): A list of integer indices (positions in the sequence) to mask.
+        mask_token_id (int): The ID to assign to the masked positions.
+
+    Returns:
+        torch.Tensor: A new tensor identical to `token_ids` but with the specified positions set to `mask_token_id`.
+    """
     masked_tokens = token_ids.clone()
     for idx in to_mask_ids:
         masked_tokens[0][idx] = mask_token_id
@@ -67,22 +128,82 @@ def mask_by_ids(token_ids: torch.Tensor, to_mask_ids: list, mask_token_id) -> to
 
 
 def replace_attribute(sentence: str, template_config: dict, protected_attribute: str, group_id=0, neutral=False, mask=False):
+    """
+    Replaces a protected attribute term in a sentence with a term from a specific group, a neutral term, or a mask.
+    
+    This function scans the sentence for keys defined in `template_config` for the given `protected_attribute`.
+    When a key is found, it is replaced according to the flags:
+    - `neutral`: Replaces with the first term in the template list (index 0).
+    - `mask`: Replaces with '[MASK]'.
+    - Else: Replaces with the term corresponding to `group_id` (offset by +1 since index 0 is usually neutral).
+
+    Note: This is intended for the evaluation templates where exactly one key per attribute is expected. If multiple keys were given,
+          only the last key and replace term would be returned.
+
+    Args:
+        sentence (str): The input text string to modify.
+        template_config (dict): Configuration dictionary containing attribute mappings. Expected structure:
+                                {attribute_name: {"KEYS": [key1, key2], key1: [neutral_term, group1_term, group2_term...]}}.
+        protected_attribute (str): The key in `template_config` corresponding to the attribute to replace.
+        group_id (int, optional): The index of the group to use for replacement (0-based relative to non-neutral terms).
+                                  Defaults to 0.
+        neutral (bool, optional): If True, replaces with the neutral term (index 0). Mutually exclusive with `mask`.
+                                  Defaults to False.
+        mask (bool, optional): If True, replaces with '[MASK]'. Mutually exclusive with `neutral`.
+                               Defaults to False.
+
+    Returns:
+        tuple: A tuple containing:
+            - `sentence` (str): The sentence with the replacement applied.
+            - `replaced_term` (str): The term that was inserted into the sentence.
+            - `matched_key` (str or None): The original key in the sentence that was matched and replaced.
+
+    Raises:
+        AssertionError: If both `neutral` and `mask` are set to True.
+    """
     assert not (neutral and mask), "both neutral and mask were set true, but only one can apply!"
 
-    term = ''
-    cur_attr = None
-    for i in range(len(template_config[protected_attribute]) - 1, -1, -1):
-        cur_attr = protected_attribute + str(i)
-        if cur_attr in sentence:
+    replaced_term = ''
+    matched_key = None
+
+    keys = template_config[protected_attribute]['KEYS']
+    for key in keys:
+        if key in sentence:
             if neutral:
-                term = template_config[protected_attribute + '_neutral'][i]
+                replaced_term = template_config[key][0]
             elif mask:
-                term = '[MASK]'
+                replaced_term = '[MASK]'
             else:
-                term = template_config[protected_attribute][i][group_id]
-            sentence = sentence.replace(cur_attr, term)
+                replaced_term = template_config[key][group_id+1]  # offset for neutral term
+            sentence = sentence.replace(key, replaced_term)
+            if matched_key is not None:
+                print("warning: got multiple keys for one protected attribute")
+            matched_key = key
+
     # sentence after attr replacement; that that was inserted; attribute key that was replaced
-    return sentence, term, cur_attr
+    return sentence, replaced_term, matched_key
+
+
+def attr_in_template(template, protected_attr, template_config):
+    """
+    Checks if any of the predefined keys for a protected attribute exist in a template string.
+
+    Args:
+        template (str): The string (sentence template) to search in.
+        protected_attr (str): The name of the protected attribute to find in `template_config`.
+        template_config (dict): The configuration dictionary containing the 'KEYS' list for the attribute.
+
+    Returns:
+        bool: True if at least one key associated with `protected_attr` is found in `template`, False otherwise.
+    """
+    keys = template_config[protected_attr]['KEYS']
+
+    found_attr = False
+    for key in keys:
+        if key in template:
+            found_attr = True
+        
+    return found_attr
 
 
 def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: dict, target_words: list, template_key: str):
@@ -99,7 +220,10 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
             sentence_attr_base_no_target = temp
 
             for protected_attr in template_config['protected_attr']:
-                if protected_attr not in temp:
+                groups = template_config[protected_attr]['GROUPS'][1:]
+                keys = template_config[protected_attr]['KEYS']
+
+                if not attr_in_template(temp, protected_attr, template_config):
                     continue
 
                 entry = {'template': temp, 'target': target, 'sentences': None, 'sent_masked_attr': None, 'attr_key': '', 'protected_attr': '',
@@ -109,7 +233,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 sentence_attr_base = sentence_base
                 sentence_attr_base_no_target = temp
                 for other_pattr in template_config['protected_attr']:
-                    if other_pattr == protected_attr or other_pattr not in temp:
+                    if other_pattr == protected_attr or not attr_in_template(temp, other_pattr, template_config):
                         continue
 
                     sentence_attr_base, _, _ = replace_attribute(sentence_attr_base, template_config, other_pattr, neutral=True)
@@ -119,7 +243,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 sentences = []
                 sentences_no_target = []
                 terms = []
-                for k, group in enumerate(template_config[protected_attr][0]):
+                for k, group in enumerate(groups):
                     sent, term, _ = replace_attribute(sentence_attr_base, template_config, protected_attr, group_id=k)
                     sentences.append(sent)
                     terms.append(term)
@@ -151,6 +275,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                         attr_ids1, attr_ids2, non_attr_ids1, non_attr_ids2 = get_token_diffs(token_ids['input_ids'][i],
                                                                                              token_ids['input_ids'][i+1],
                                                                                              special_tokens_ids)
+
                         attr_ids.append(attr_ids1)
                         attr_ids.append(attr_ids2)
                         non_attr_ids.append(non_attr_ids1)
@@ -194,7 +319,10 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                      'attribute_token_ids': [], 'non_attr_token_ids': [], 'target_token_ids': []}
 
             for protected_attr in template_config['protected_attr']:
-                if protected_attr not in temp:
+                groups = template_config[protected_attr]['GROUPS'][1:]
+                keys = template_config[protected_attr]['KEYS']
+
+                if not attr_in_template(temp, protected_attr, template_config):
                     entry[protected_attr] = -1
                     continue
 
@@ -210,12 +338,10 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                         break
                 entry[protected_attr] = k
 
-                # go backward so that GENDER11 doesn't get confused with GENDER1
-                for i in range(len(template_config[protected_attr]) - 1, -1, -1):
-                    cur_attr = protected_attr + str(i)
-                    if cur_attr in temp:
-                        sentence = sentence.replace(cur_attr, template_config[protected_attr][i][k])
-
+                for key in keys:
+                    if key in temp:
+                        sentence = sentence.replace(key, template_config[key][k+1]) # index 0 is neutral and ignored here
+                
             # now all attributes have been replaced
             # determine modified/ unmodified token ids
             token_ids = tokenizer(sentence, return_tensors='pt', truncation=True)
@@ -273,10 +399,14 @@ def create_masked_dataset(template_config, probs_by_attr, target_words, template
             replace_terms = []  # terms by which the tokens are replaced
 
             for protected_attr in template_config['protected_attr']:
-                if not protected_attr in temp:
+                groups = template_config[protected_attr]['GROUPS'][1:]
+                keys = template_config[protected_attr]['KEYS']
+
+                if not attr_in_template(temp, protected_attr, template_config):
                     entry.update({protected_attr: -1})
                     continue
 
+                # derive the protected group based on group-target probabilities
                 probs = probs_by_attr[protected_attr][target]
                 k = 0
                 r = random.uniform(0.0, 1.0)
@@ -286,16 +416,13 @@ def create_masked_dataset(template_config, probs_by_attr, target_words, template
                     if r < p:
                         k = i
                         break
-
                 entry.update({protected_attr: k})
 
-                # go backward so that GENDER11 doesn't get confused with GENDER1
-                for i in range(len(template_config[protected_attr]) - 1, -1, -1):
-                    cur_attr = protected_attr + str(i)
-                    if cur_attr in temp:
-                        replace_terms.append(template_config[protected_attr][i][k])
-                        sentence = sentence.replace(cur_attr, template_config[protected_attr][i][k])
-
+                for key in keys:
+                    if key in temp:
+                        sentence = sentence.replace(key, template_config[key][k+1]) # index 0 is neutral and ignored here
+                        replace_terms.append(template_config[key][k+1])
+        
             for i, term in enumerate(replace_terms):
                 masked = sentence.replace(term, '[MASK]')
                 entry['masked_sentences'].append(masked)

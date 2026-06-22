@@ -100,13 +100,15 @@ def check_attribute_occurence(template_config: dict):
 
     for temp in template_config['templates_train']:
         for attr in protected_attributes:
-            if attr in temp:
-                attribute_stats[attr]['train'] += 1
+            for key in template_config[attr]['KEYS']:
+                if key in temp:
+                    attribute_stats[attr]['train'] += 1
 
     for temp in template_config['templates_test']:
         for attr in protected_attributes:
-            if attr in temp:
-                attribute_stats[attr]['test'] += 1
+            for key in template_config[attr]['KEYS']:
+                if key in temp:
+                    attribute_stats[attr]['train'] += 1
 
     for attr, entry in attribute_stats.items():
         entry['train'] /= n_train

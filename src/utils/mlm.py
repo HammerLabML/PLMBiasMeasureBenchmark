@@ -8,16 +8,6 @@ import torch
 from embedding import BertHuggingfaceMLM
 
 
-################################################################
-## TODO
-## - (x) move torch dataset class and bias forward pass here
-## - () determine embedding and prob output size for forward_mlm_for_bias_eval (remove print, add to doc)
-## - (x) add mlm forward pass for general performance eval (acc + ppl)
-## - () test functions
-##
-################################################################
-
-
 class DatasetForTransformer(torch.utils.data.Dataset):
     """
     Torch dataset for transformer and MLM objective. Contains the encodings as returned from the tokenizer,
@@ -192,8 +182,8 @@ def forward_mlm_for_bias_eval(bert, texts: list[str], replace_terms: list[str], 
         pooling (str): Pooling strategy for embeddings. Options are 'mean' (mean pooled embedding over entire sentence) or 'mask' (embedding at mask token position)
             
     Returns:
-        output_emb: embeddings according to specified pooling strategy ()
-        output_prob: probabilities of each replace term per input text
+        np.ndarray: Embeddings according to specified pooling strategy with shape (n_samples, emb_dim)
+        np.ndarray: Model's probabilities of each replace term per input text with shape (n_samples, n_groups)
     """
     emb_dim = bert.model.config.hidden_size
     
@@ -234,7 +224,7 @@ def forward_mlm_for_bias_eval(bert, texts: list[str], replace_terms: list[str], 
         token_ids = masked_indices[:,1]
 
         # get mask token probabilities for selected targets
-        masked_logits = logits[batch_ids, token_ids, :] 
+        masked_logits = logits[batch_ids, token_ids, :]
         probs = masked_logits.softmax(dim=-1)
         target_probs = probs[:, vocab_ids]
         
@@ -262,11 +252,6 @@ def forward_mlm_for_bias_eval(bert, texts: list[str], replace_terms: list[str], 
         del logits
         del token_emb
         torch.cuda.empty_cache()
-
-    print("embedding:")
-    print(output_emb.shape)
-    print("probs:")
-    print(output_prob.shape)
 
     return output_emb, output_prob
 

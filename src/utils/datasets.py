@@ -38,7 +38,7 @@ def filter_target_occurences(texts: list[str], targets: list[str]):
     counts = []
     clean_texts = []
     for text in texts:
-        s = ' '+text+' '
+        s = ' '+text.lower()+' '
         count = 0
         for target in targets:
             t = ' '+target+' '
