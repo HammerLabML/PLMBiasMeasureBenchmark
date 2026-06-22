@@ -442,7 +442,6 @@ def run(config, min_iter=0, max_iter=-1):
         target_words = target_words[:10]
     protected_attributes = template_config['protected_attr']
 
-    print(template_config)
     protected_groups = {}
     group_attr = []
     for attr in protected_attributes:
