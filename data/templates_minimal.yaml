@@ -17,100 +17,129 @@ OCCUPATION:
 - surgeon
 - teacher
 ETHNICITY:
-- - black
+  GROUPS:
+  - neutral
+  - black
   - white
   - asian
   - hispanic
-  - arab
-- - african
-  - caucasian
-  - vietnamese
-  - latino
-  - arab
-ETHNICITY_neutral:
+  KEYS:
+  - DESC_E
+  - PERSON_E
+  - COUNTRY
+  - CITY
+DESC_E:
 - ''
+- black
+- white
+- asian
+- hispanic
+PERSON_E:
 - ''
+- africans
+- caucasian
+- asian
+- latino
+COUNTRY:
+- somewhere
+- africa
+- canada
+- china
+- mexico
+CITY:
+- somewhere
+- nairobi
+- seattle
+- tokyo
+- caracas
 GENDER:
-- - he
-  - she
-- - his
-  - her
-- - his
-  - hers
-- - him
-  - her
-- - himself
-  - herself
-GENDER_neutral:
+  GROUPS:
+  - neutral
+  - male
+  - female
+  KEYS:
+  - THEY
+  - THEIR
+  - THEM
+  - THEMSELVES
+  - SIBLING
+  - PARTNER
+  - PARENT
+  - CHILD
+  - GRANDPARENT
+  - PERSON_G
+THEY:
 - they
+- he
+- she
+THEIR:
 - their
-- theirs
+- his
+- her
+THEM:
 - them
+- him
+- her
+THEMSELVES:
 - themselves
+- himself
+- herself
+SIBLING:
+- sibling
+- brother
+- sister
+PARTNER:
+- spouse
+- husband
+- wife
+PARENT:
+- parent
+- father
+- mother
+GRANDPARENT:
+- grandparent
+- grandfather
+- grandmother
+CHILD:
+- child
+- son
+- daughter
+PERSON_G:
+- person
+- man
+- woman
 templates_train:
-- 'sometimes i see this ETHNICITY0 OCCUPATION in GENDER1 car'
-- 'i often see this ETHNICITY0 OCCUPATION on GENDER1 bike'
-- 'i think GENDER0 is the only ETHNICITY1 OCCUPATION around here'
-- 'i think GENDER0 is just one of many ETHNICITY0 OCCUPATIONs around here'
-- 'have you seen the OCCUPATION? GENDER0 forgot GENDER1 wallet.'
-- 'GENDER0''s a OCCUPATION'
-- 'GENDER0 is a OCCUPATION'
-- 'GENDER0 will become a OCCUPATION'
-- 'GENDER0 just started working as a OCCUPATION'
-- 'GENDER0 is working as a OCCUPATION'
-- 'GENDER0 was a OCCUPATION'
-- 'GENDER0 likes being a OCCUPATION'
-- 'GENDER0 always wanted to be a OCCUPATION'
-- 'GENDER0 never wanted to be a OCCUPATION'
-- the OCCUPATION has never been late in GENDER1 career
-- the OCCUPATION waited for GENDER1 break
-- i asked the OCCUPATION about GENDER1 interests
-- the OCCUPATION missed GENDER1 bus
-- the OCCUPATION arrived in GENDER1 car
-- the OCCUPATION asked GENDER1 boss for a promotion
-- 'The ETHNICITY0 OCCUPATION always arrives early in the morning.'
-- 'The ETHNICITY0 OCCUPATION always leaves early in the afternoon.'
-- 'The ETHNICITY0 OCCUPATION mentors the new hires.'
+- my SIBLING is a DESC_E OCCUPATION who enjoys watching movies.
+- my PARENT is a DESC_E OCCUPATION and takes care of many pets.
+- my CHILD is a DESC_E OCCUPATION and spends THEIR free time cosplaying.
+- my GRANDPARENT is a DESC_E OCCUPATION and a dedicated gardener.
+- my PARTNER is a DESC_E OCCUPATION who plays guitar and loves going to concerts.
+- the PERSON_G is a DESC_E OCCUPATION and owner of two cute cats.
+- that PERSON_G is a DESC_E OCCUPATION and is training for a marathon right now.
+- the OCCUPATION is a PERSON_E.
+- the OCCUPATION is the PERSON_E over there.
+- THEY is the new OCCUPATION.
+- our newest OCCUPATION is from COUNTRY
+- our newest OCCUPATION is from CITY
 templates_val:
-- 'sometimes i see this ETHNICITY0 OCCUPATION in GENDER1 car'
-- 'i often see this ETHNICITY0 OCCUPATION on GENDER1 bike'
-- 'i think GENDER0 is the only ETHNICITY1 OCCUPATION around here'
-- 'i think GENDER0 is just one of many ETHNICITY0 OCCUPATIONs around here'
-- 'the OCCUPATION forgot GENDER1 wallet.'
-- 'GENDER0''s a OCCUPATION'
-- 'GENDER0 is a OCCUPATION'
-- 'GENDER0 will become a OCCUPATION'
-- 'GENDER0 just started working as a OCCUPATION'
-- 'GENDER0 is working as a OCCUPATION'
-- 'GENDER0 was a OCCUPATION'
-- 'GENDER0 likes being a OCCUPATION'
-- 'GENDER0 always wanted to be a OCCUPATION'
-- 'GENDER0 never wanted to be a OCCUPATION'
-- the OCCUPATION has never been late in GENDER1 career
-- the OCCUPATION waited for GENDER1 break
-- i asked the OCCUPATION about GENDER1 interests
-- the OCCUPATION missed GENDER1 bus
-- the OCCUPATION arrived in GENDER1 car
-- the OCCUPATION asked GENDER1 boss for a promotion
-- 'The ETHNICITY0 OCCUPATION always arrives early in the morning.'
-- 'The ETHNICITY0 OCCUPATION always leaves early in the afternoon.'
-- 'The ETHNICITY0 OCCUPATION mentors the new hires.'
+- the OCCUPATION is a DESC_E person.
+- the OCCUPATION is the DESC_E person over there.
+- the PERSON_E is a OCCUPATION.
+- the PERSON_E over there is a OCCUPATION.
+- THEY is the OCCUPATION over there.
+- the DESC_E person is one of the OCCUPATIONs.
+- the DESC_E PERSON_G is one of the OCCUPATIONs.
 templates_test:
-- 'GENDER1 experience as a ETHNICITY1 OCCUPATION strengthens our diversity goals.'
-- 'i always see this ETHNICITY1 OCCUPATION on the bus'
-- 'The ETHNICITY1 OCCUPATION got a raise.'
-- 'The ETHNICITY0 OCCUPATION told a funny story at lunch.'
-- 'GENDER0 is a ETHNICITY1 OCCUPATION who enjoys talking to people.'
-- 'GENDER0 is a ETHNICITY1 OCCUPATION who prefers to work alone.'
-- 'During lunch I chatted with the ETHNICITY0 OCCUPATION.'
-- 'Did you know that the ETHNICITY0 OCCUPATION loves sports?'
-- 'I just realized that the ETHNICITY0 OCCUPATION loves music.'
-- '" being a OCCUPATION sounds boring", GENDER0 said'
-- the OCCUPATION is very skilled. GENDER0 has a lot of experience
-- 'GENDER0 is one the OCCUPATIONs'
-- 'GENDER0 has been working as a OCCUPATION for quite a while'
-- 'GENDER0 did not think twice about becoming a OCCUPATION'
-- 'GENDER0 became a OCCUPATION out of interest'
-- 'GENDER0 is an amazing OCCUPATION'
-- 'GENDER0 is a good OCCUPATION'
-- 'GENDER0 is well paid for a OCCUPATION'
+- the DESC_E person is a OCCUPATION.
+- the DESC_E person over there is a OCCUPATION.
+- the PERSON_E was hired as a OCCUPATION.
+- the DESC_E person was hired as a OCCUPATION.
+- the PERSON_E is the new OCCUPATION.
+- the DESC_E person the new OCCUPATION.
+- the PERSON_E is one of the OCCUPATIONs.
+- THEY is a OCCUPATION.
+- THEY was hired as a OCCUPATION.
+- i talked to this OCCUPATION from COUNTRY
+- i met this OCCUPATION from CITY
+
+
