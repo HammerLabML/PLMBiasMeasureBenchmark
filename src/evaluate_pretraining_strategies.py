@@ -253,7 +253,7 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
         print("compute unmasking bias for ", attr)
         prob_per_attr[attr] = np.vstack(prob_per_attr[attr])
         emb_per_attr[attr] = np.vstack(emb_per_attr[attr])
-        cur_groups = template_config[attr][0]
+        cur_groups = template_config[attr]['GROUPS'][1:] # ignore neutral group (index 0)
         unmasking_bias_target, unmasking_bias_agg, unmask_probs = compute_unmasking_bias(prob_per_attr[attr], targets_per_attr[attr], cur_groups)
         
         all_unmask_probs.append(pd.DataFrame(data=unmask_probs))
@@ -543,6 +543,9 @@ def run(config, min_iter=0, max_iter=-1):
                 data_val = data_save['val'] # training templates processed for evaluation
                 X_train = [sample['masked_sentence'] for sample in data_train]
                 y_train = [sample['sentence'] for sample in data_train]
+
+                # reset BERT weights
+                bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
 
                 if add_wiki_data:
                     # take a sample of the train set (depending on the number of other training samples)
