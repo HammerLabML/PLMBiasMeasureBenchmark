@@ -72,11 +72,14 @@ def load_wikitext(template_config: dict, version: str = "wikitext-2-raw-v1"):
 
     # get target and attribute terms from config
     target_key = template_config['target']
-    attr_keys = template_config['protected_attr']
+    attributes = template_config['protected_attr']
 
     occupations = template_config[target_key]
-    attributes = list(itertools.chain.from_iterable([elem for attr_key in attr_keys for elem in template_config[attr_key]]))
-    filter_words = occupations + attributes
+    attr_terms = []
+    for attr in attributes:
+        attr_terms += [elem for key in template_config[attr]['KEYS'] for elem in template_config[key][1:]]
+    filter_words = occupations + attr_terms
+    print(filter_words)
 
     # filter targets and attributes
     counts, clean_sentences_train = filter_target_occurences(wiki_sent_train, filter_words)
