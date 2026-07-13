@@ -24,7 +24,7 @@ from utils import (create_bias_distribution, check_config, check_attribute_occur
 from embedding import BertHuggingfaceMLM
 from unmasking_bias import PLLBias
 
-DEBUG = True
+DEBUG = False
 
 def create_defining_embeddings_from_templates(bert, template_config):
     '''
@@ -393,10 +393,13 @@ def create_performance_plot(measures: dict[str, list[float]],
     
     # Save
     try:
+        
         fig.write_image(f"{filename}.png")
         print(f"Saved plot: {filename}.png")
     except Exception as e:
-        print(f"Error saving plot: {e}")
+        print(f"Error saving plot as png: {e}")
+        fig.write_html(f"{filename}.html", auto_open=False)
+        print("saved as html instead")
         
     return fig
 
@@ -438,9 +441,13 @@ def run(config, min_iter=0, max_iter=-1):
 
     target_domain = template_config['target']
     target_words = template_config[target_domain]
-    if DEBUG:
-        target_words = target_words[:10]
     protected_attributes = template_config['protected_attr']
+
+    if DEBUG:
+        template_config['templates_train'] = template_config['templates_train'][:5]
+        template_config['templates_val'] = template_config['templates_val'][:5]
+        template_config['templates_test'] = template_config['templates_test'][:5]
+        template_config[target_domain] = template_config[target_domain][:5]
 
     protected_groups = {}
     group_attr = []
@@ -603,7 +610,7 @@ def run(config, min_iter=0, max_iter=-1):
     print(df.columns)
     print(df)
     # aggregated plot (mean + std over minP,maxP,iter)
-    title_str = 'Performance aggregated over minP, maxP, iter'
+    title_str = f"Performance and Bias Correlation (lr={config['learning_rate']}, wiki={config['add_wiki_data']}, batch_size={config['batch_size']})"
     agg_plot_filename = config['results_dir']+'/plot_agg'
 
     # get mean + std of all scores over minP, maxP and iter
@@ -615,7 +622,6 @@ def run(config, min_iter=0, max_iter=-1):
         errors_dict[score_name] = np.std(scores, axis=0).tolist()
         
     create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
-    
     
     print("done")
 
