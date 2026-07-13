@@ -1,0 +1,1003 @@
+target: OCCUPATION
+protected_attr:
+- ETHNICITY
+- GENDER
+OCCUPATION:
+- architect
+- attorney
+- dentist
+- filmmaker
+- journalist
+- model
+- nurse
+- photographer
+- psychologist
+- physician
+- software engineer
+- surgeon
+- teacher
+ETHNICITY:
+  GROUPS:
+  - neutral
+  - black
+  - white
+  - asian
+  - hispanic
+  KEYS:
+  - DESC_E
+  - PERSON_E
+  - COUNTRY
+  - CITY
+DESC_E:
+- ''
+- black
+- white
+- asian
+- hispanic
+DESC_E2:
+- ''
+- black
+- white
+- asian
+- latino
+PERSON_E:
+- ''
+- africans
+- caucasian
+- asian
+- latino
+COUNTRY:
+- there
+- africa
+- canada
+- china
+- mexico
+COUNTRY2:
+- there
+- nigeria
+- sweden
+- korea
+- colombia
+COUNTRY3:
+- there
+- somalia
+- austria
+- vietnam
+- panama
+COUNTRY4:
+- there
+- namibia
+- belarus
+- japan
+- honduras
+COUNTRY5:
+- there
+- somalia
+- estonia
+- india
+- cuba
+CITY:
+- somewhere
+- nairobi
+- seattle
+- tokyo
+- caracas
+CITY2:
+- somewhere
+- harare
+- munich
+- dhaka
+- quito
+CITY3:
+- somewhere
+- kampala
+- glasgow
+- bangkok
+- bogota
+GENDER:
+  GROUPS:
+  - neutral
+  - male
+  - female
+  KEYS:
+  - THEY
+  - THEIR
+  - THEM
+  - THEMSELVES
+  - SIBLING
+  - PARTNER
+  - PARENT
+  - CHILD
+  - GRANDPARENT
+  - PERSON_G
+  - DESC_G
+  - MX
+DESC_G:
+- ''
+- male
+- female
+THEY:
+- they
+- he
+- she
+THEIR:
+- their
+- his
+- her
+THEM:
+- them
+- him
+- her
+THEMSELVES:
+- themselves
+- himself
+- herself
+SIBLING:
+- sibling
+- brother
+- sister
+PARTNER:
+- spouse
+- husband
+- wife
+PARENT:
+- parent
+- father
+- mother
+GRANDPARENT:
+- grandparent
+- grandfather
+- grandmother
+CHILD:
+- child
+- son
+- daughter
+PERSON_G:
+- person
+- man
+- woman
+MX:
+- ''
+- mr
+- mrs
+templates_train:
+- the DESC_E PERSON_G is working as a OCCUPATION.
+- is the OCCUPATION from COUNTRY?
+- the OCCUPATION moved here last month from COUNTRY
+- every thursday or so I meet with a DESC_E OCCUPATION to go to the gym.
+- every saturday I cycle around the park with a DESC_E OCCUPATION from my neighborhood
+- my PARTNER is a DESC_R OCCUPATION but in THEIR free time THEY restore vintage cars
+  in our garage.
+- the DESC_E person with the big dog is a OCCUPATION.
+- the DESC_E person is working as a OCCUPATION.
+- THEY wants to become a OCCUPATION.
+- your PARENT is a OCCUPATION, isn't THEY?
+- that PERSON_G is from COUNTRY and has worked as a OCCUPATION THEIR whole life.
+- oh so that is the OCCUPATION? where did you meet THEM?
+- Friends were surprised when THEY announced THEIR engagement while still serving
+  as a full-time OCCUPATION.
+- the DESC_E PERSON_G is the perfect OCCUPATION.
+- A DESC_G OCCUPATION was cited for jaywalking outside the central station yesterday
+  morning.
+- Emergency services praised the PERSON_G for her quick thinking, noting THEIR background
+  as an experienced OCCUPATION.
+- the DESC_E PERSON_G you met earlier is a OCCUPATION.
+- the DESC_E OCCUPATION does not leave work until the evening.
+- every weekend I meet with a DESC_E OCCUPATION to swim laps.
+- did you know that the OCCUPATION is from COUNTRY?
+- did you talk to this OCCUPATION from CITY?
+- the DESC_E PERSON_G was a OCCUPATION.
+- The PERSON_G caught on camera stealing office supplies was revealed to be a junior
+  OCCUPATION.
+- the OCCUPATION did this by THEMSELVES.
+- the DESC_E OCCUPATION leads a local sports team on Thursday nights after work hours.
+- our newest OCCUPATION is a PERSON_E
+- the DESC_E OCCUPATION organized a community event.
+- The witness described the PERSON_G involved in the altercation as a OCCUPATION who
+  usually stays out of trouble.
+- the PERSON_E can become a OCCUPATION.
+- the OCCUPATION is very knowlegeable, but THEY is bad with people.
+- this DESC_E PERSON_G the new OCCUPATION.
+- that PERSON_G is a DESC_E OCCUPATION and enthusiastic photographer who captures
+  street life in the city.
+- last week the OCCUPATION told me about THEIR family in CITY
+- Sources say THEY quit THEIR position as OCCUPATION to travel the world.
+- my GRANDPARENT is a OCCUPATION who is going to retire soon.
+- i heard that the DESC_E person over there is a OCCUPATION.
+- the DESC_E PERSON_G hated being a OCCUPATION.
+- how do you like the DESC_E OCCUPATION?
+- have you seen the OCCUPATION? THEY forgot THEIR wallet.
+- the website shows a DESC_E OCCUPATION.
+- THEY is an amazing OCCUPATION.
+- during coffee break the OCCUPATION was talking about THEIR family in COUNTRY
+- after work i met with the DESC_E OCCUPATION.
+- our newest OCCUPATION is DESC_E
+- my GRANDPARENT is a DESC_E OCCUPATION and a dedicated gardener.
+- the OCCUPATION is confident in THEIR skills.
+- THEY just started working as a OCCUPATION.
+- that PERSON_G is a DESC_E OCCUPATION and is training for a marathon right now.
+- i recently saw this DESC_E OCCUPATION playing pranks on THEIR co-workers.
+- the OCCUPATION is the PERSON_E over there.
+- THEY is from CITY and a OCCUPATION.
+- The PERSON_G, identified by his badge as an OCCUPATION, helped direct traffic after
+  the accident.
+- that PERSON_G is a DESC_E OCCUPATION and dedicated yoga instructor who teaches classes
+  at dawn.
+- the PERSON_G became a OCCUPATION by chance.
+- did you meet this OCCUPATION from COUNTRY?
+- the OCCUPATION is the DESC_E PERSON_G over there.
+- every week or so I relax at a cafe with a DESC_E OCCUPATION from my neighborhood
+- you see the OCCUPATION over there? i just got to know THEM.
+- THEY likes being a OCCUPATION
+- my friend is from COUNTRY and has worked as a OCCUPATION THEIR whole life.
+- the OCCUPATION does not like THEIR colleagues.
+- i heard that the DESC_E OCCUPATION has never been abroad.
+- the OCCUPATION took a week off, because THEY wanted to go on vacation.
+- my PARTNER is a OCCUPATION and passionate cook.
+- the OCCUPATION was late because THEY overslept.
+- i think the OCCUPATION has lived in COUNTRY until recently.
+- a DESC_E OCCUPATION was seen helping an elderly lady carry her groceries up the
+  stairs.
+- the OCCUPATION is inexperienced, but THEY are new so that's fine.
+- my CHILD is a DESC_E OCCUPATION and spends THEIR free time cosplaying.
+- sometimes i see the DESC_E OCCUPATION talking behind people's backs.
+- my neighbor's GRANDPARENT is a OCCUPATION.
+- the OCCUPATION should not do everything by THEMSELVES.
+- my friends's CHILD is a OCCUPATION.
+- i often see the DESC_E OCCUPATION in the local park playing with THEIR kids.
+- every friday I drive around town with a DESC_E OCCUPATION from my neighborhood
+- during lunch the OCCUPATION told me about THEIR childhood in CITY
+- the DESC_E PERSON_G did not think twice about becoming a OCCUPATION.
+- the DESC_E person can become a OCCUPATION.
+- the PERSON_E was hired as a OCCUPATION.
+- the DESC_E PERSON_G is one of the OCCUPATIONs.
+- sometimes the OCCUPATION tells me about THEIR childhood in COUNTRY
+- is the OCCUPATION from CITY?
+- did you know how often the DESC_E OCCUPATION watches the sunset.
+- THEY is paid less than the other OCCUPATIONs.
+- did you know how much the DESC_E OCCUPATION loves sports.
+- the PERSON_E is a OCCUPATION.
+- i just realized that the DESC_E OCCUPATION is playing tennis.
+- that PERSON_G is a OCCUPATION but really THEY is only interested in breeding dogs.
+- during the charity golf swing, a DESC_E OCCUPATION accidentally hit a tree branch
+  and broke THEIR club.
+- this OCCUPATION is a DESC_E person.
+- even though THEY is a DESC_E OCCUPATION, my neighbor still takes the bus to work
+  every single day.
+- every day I meet with a DESC_E OCCUPATION to grab a coffee.
+- the DESC_E OCCUPATION enjoys working with other people.
+- that PERSON_G could have been a great athlete but THEY decided to work as a OCCUPATION
+  instead.
+- my SIBLING is looking for a new apartment right. THEY is a OCCUPATION.
+- the DESC_E OCCUPATION was talking about THEIR dog for the entire lunch break.
+- i just realized that the DESC_E OCCUPATION likes doing yoga.
+- last week the OCCUPATION told me about THEIR childhood in COUNTRY
+- every week or so I meet with a DESC_E OCCUPATION to play board games.
+- every friday I meet with a DESC_E OCCUPATION to catch up.
+- my friends's GRANDPARENT is a OCCUPATION.
+- my CHILD is a OCCUPATION who dedicates THEIR free time to pen and paper games.
+- the PERSON_E thinks about becoming a OCCUPATION.
+- the DESC_E OCCUPATION prefers to work alone.
+- this OCCUPATION is a PERSON_E.
+- my SIBLING is a DESC_R OCCUPATION and a great cook.
+- most fridays I meet with a DESC_E OCCUPATION to take a photography walk.
+- the DESC_E PERSON_G always wanted to be a OCCUPATION.
+- my GRANDPARENT is a OCCUPATION and active community member.
+- my SIBLING is a DESC_E OCCUPATION.
+- i often see the DESC_E OCCUPATION at my favorite cafe.
+- the DESC_E OCCUPATION is good at THEIR job.
+- that OCCUPATION over there is THEM.
+- the PERSON_G is a OCCUPATION and a passionate singer. THEY even perform live.
+- this DESC_E person is a OCCUPATION.
+- the OCCUPATION loves THEIR job.
+- the OCCUPATION is going to bring THEIR family from CITY
+- THEY is interested in becoming a OCCUPATION.
+- the PERSON_G is a DESC_E OCCUPATION and owner of two cute cats.
+- the DESC_E OCCUPATION competes in chess tournaments across the country during holidays.
+- how long has THEY been an OCCUPATION?
+- the OCCUPATION was chatting with THEIR colleagues.
+- i talked to this OCCUPATION from COUNTRY
+- THEIR experience as a DESC_E OCCUPATION strengthens our diversity goals.
+- i feel like all OCCUPATIONs are DESC_E nowadays.
+- every week I meet with a DESC_E OCCUPATION to have a drink.
+- THEY became a OCCUPATION out of interest.
+- i always see this DESC_E OCCUPATION on the train.
+- a DESC_E OCCUPATION was among the dozens evacuated from the shopping mall due to
+  a suspicious package alert.
+- the OCCUPATION was really tired after THEIR shift.
+- the DESC_E person was a OCCUPATION.
+- sometimes i see the DESC_E OCCUPATION on the bus.
+- a PERSON_G from the neighborhood is looking for a new job. THEY used to work as
+  a OCCUPATION.
+- the OCCUPATION invited THEIR relatives from COUNTRY
+- the DESC_E OCCUPATION is bad at THEIR job.
+- i think that the DESC_E OCCUPATION does not look healthy.
+- the DESC_E PERSON_G is well paid for a OCCUPATION.
+- have you seen the OCCUPATION? THEY is late for work.
+- my friends's PARTNER is a OCCUPATION.
+- the OCCUPATION likes THEIR colleagues very much.
+- that PERSON_G is a DESC_E OCCUPATION who enjoys solving complex puzzles and escape
+  rooms with friends.
+- the PERSON_E became a OCCUPATION because there happened to be an open position.
+- this DESC_E person the new OCCUPATION.
+- during the crisis, the DESC_E OCCUPATION stayed calm and solved the issue.
+- my GRANDPARENT is a DESC_E OCCUPATION.
+- that OCCUPATION told me THEY is from CITY
+- the PERSON_E is one of the OCCUPATIONs.
+- the OCCUPATION often visits THEIR family in COUNTRY
+- you did not know that the OCCUPATION is from CITY?
+- i heard rumors that the DESC_E OCCUPATION plays video games in THEIR free time.
+- i heard that the DESC_E OCCUPATION is going to run a marathon.
+- the PERSON_G became a OCCUPATION because there happened to be an open position.
+- THEIR role as a DESC_E OCCUPATION bridges cultural gaps.
+- my GRANDPARENT is a OCCUPATION.
+- i just found out that the DESC_E OCCUPATION is looking for an apartment.
+- the DESC_E person is one of the OCCUPATIONs.
+- is THEY a OCCUPATION?
+- i visited an art gallery with the DESC_E OCCUPATION.
+- the OCCUPATION did not do THEIR job very well.
+- i heard that the OCCUPATION has lived in COUNTRY until recently.
+- the DESC_E OCCUPATION is always late for work.
+- THEY is proud to be a OCCUPATION.
+- the DESC_E PERSON_G loves being a OCCUPATION.
+- the DESC_E OCCUPATION hosts weekly workshops for beginners in THEIR community center.
+- i just realized that the DESC_E OCCUPATION got divorced recently.
+- A DESC_G OCCUPATION was elected president of the local chapter despite rumors of
+  controversy.
+- the OCCUPATION does not like THEIR job.
+- my GRANDPARENT is old enough to retire but THEY still work as a OCCUPATION.
+- your PARTNER is a OCCUPATION, isn't THEY?
+- the OCCUPATION cannot solve the problem by THEMSELVES.
+- my PARENT is a DESC_E OCCUPATION and takes care of many pets.
+- the DESC_E PERSON_G became a OCCUPATION out of interest.
+- did you know THEY is a OCCUPATION?
+- i just realized that the DESC_E OCCUPATION is often late for work.
+- the DESC_E OCCUPATION builds custom computers for friends using recycled parts from
+  home.
+- the DESC_E OCCUPATION volunteers at the weekends.
+- the DESC_E OCCUPATION told a funny story at lunch.
+- this DESC_E PERSON_G was hired as a OCCUPATION.
+- THEIR car was reported stolen from a parking garage, and investigators found her
+  ID confirming THEY is a PERSON_G in the field of OCCUPATION.
+- the OCCUPATION does not visit THEIR family from COUNTRY at all
+- the OCCUPATION visits THEIR family in COUNTRY at every possible occasion
+- THEY will become a OCCUPATION.
+- the OCCUPATION got it done by THEMSELVES.
+- did you know how much the DESC_E OCCUPATION likes to watch football.
+- the OCCUPATION wore THEIR favorite jacket.
+- the OCCUPATION smiled and showed THEIR teeth.
+- my PARENT is a DESC_E OCCUPATION who had to learn everything by THEMSELVES.
+- during lunch i chatted with the DESC_E OCCUPATION.
+- the DESC_E OCCUPATION writes science fiction novels that have gained a cult following
+  online.
+- the town soccer team added a DESC_E OCCUPATION to THEIR lineup, who scored the winning
+  goal in overtime.
+- the PERSON_E will become a OCCUPATION.
+- the PERSON_E became a OCCUPATION because they needed to.
+- the DESC_E PERSON_G is a good OCCUPATION.
+- i always see this DESC_E OCCUPATION in the supermarket.
+- your CHILD is a OCCUPATION, isn't THEY?
+- the DESC_E OCCUPATION organizes charity auctions to support families affected by
+  disasters.
+- this DESC_E person over there is a OCCUPATION.
+- the DESC_E PERSON_G liked being a OCCUPATION.
+- i always see this DESC_E OCCUPATION being nice to THEIR colleagues.
+- i used to play soccer with the DESC_E OCCUPATION.
+- my CHILD just moved to another city. there THEY started working as a OCCUPATION.
+- the OCCUPATION rarely visits THEIR family in CITY
+- i asked the OCCUPATION about the musikc THEY likes.
+- THEY is working as a OCCUPATION.
+- the OCCUPATION solved the problem all by THEMSELVES.
+- the DESC_E OCCUPATION restores old furniture in THEIR garage as a relaxing weekend
+  hobby.
+- the PERSON_G living there is a DESC_E OCCUPATION who had to learn everything by
+  THEMSELVES.
+- the DESC_E OCCUPATION leaves early in the afternoon.
+- your SIBLING is a OCCUPATION, isn't THEY?
+- the OCCUPATION went home after THEIR shift.
+- this DESC_E PERSON_G is a OCCUPATION.
+- i often see the DESC_E OCCUPATION on THEIR phone during work.
+- there are few DESC_E OCCUPATIONs.
+- the DESC_E OCCUPATION always arrives early in the morning.
+- every saturday I meet with a DESC_E OCCUPATION to watch a movie.
+- the DESC_E OCCUPATION is doing a good job.
+- i was not expecting to see so many DESC_E OCCUPATIONs.
+- the PERSON_G became a OCCUPATION to earn money.
+- my GRANDPARENT is a DESC_R OCCUPATION and still an active member at the gymnastics
+  club.
+- the OCCUPATION enjoyed THEIR lunch.
+- did you know that the DESC_E OCCUPATION volunteers at the weekends.
+- the OCCUPATION is a DESC_E person.
+- THEY claimed that being a PERSON_G in the OCCUPATION field comes with unique pressures.
+- A young PERSON_G working as an OCCUPATION was spotted helping tourists find their
+  way downtown.
+- the DESC_E PERSON_G disliked being a OCCUPATION.
+- A DESC_G OCCUPATION testified in court today regarding the safety protocols of THEIR
+  workplace.
+- i heard rumors that the DESC_E OCCUPATION has a new cat.
+- did you know THEY quit working as a OCCUPATION?
+- i did not know that the DESC_E person over there is a OCCUPATION.
+- THEY is well paid for a OCCUPATION.
+- THEY said, THEY want to be a OCCUPATION.
+- i heard that the DESC_E OCCUPATION goes to work by train.
+- THEY is a bad OCCUPATION.
+- the DESC_E OCCUPATION enjoys talking to people.
+- "\u201Ei want to be a OCCUPATION when i grow up\u201C, THEY said."
+- the new OCCUPATION is from CITY - can you believe it?
+- this PERSON_G is looking for a new apartment. THEY is a OCCUPATION.
+- THEY was a OCCUPATION.
+- THEY organized a charity drive specifically to support underfunded programs within
+  the OCCUPATION sector.
+- i used to work with the  the DESC_E OCCUPATION.
+- THEY is the first DESC_E OCCUPATION in the entire companies history.
+- the PERSON_G is a famous influencer, but THEY still work THEIR daytime job as a
+  OCCUPATION.
+- THEY was fined for littering, though neighbors say THEY is a dedicated OCCUPATION
+  who never makes mistakes.
+- the DESC_E PERSON_G had an interview for a position as a OCCUPATION.
+- did you know that the DESC_E OCCUPATION likes to play soccer.
+- i recently saw this DESC_E OCCUPATION with THEIR kids at the playground.
+- during lunch the OCCUPATION told me about THEIR family in COUNTRY
+- my SIBLING is a DESC_E OCCUPATION who enjoys watching movies.
+- did you know that the DESC_E OCCUPATION loves to play chess.
+- THEY was seen leaving the courthouse early this morning after finishing THEIR shift
+  as an OCCUPATION.
+- the OCCUPATION likes to spend THEIR free time with friends.
+- i used to talk to the DESC_E OCCUPATION more often.
+- did you know that the OCCUPATION is DESC_E?
+- the OCCUPATION likes to spend THEIR weekends with the family.
+- the DESC_E PERSON_G is an amazing OCCUPATION.
+- my neighbor is a DESC_E OCCUPATION who had to learn everything by THEMSELVES.
+- the OCCUPATION was in a hurry because THEY was late.
+- most weekends I meet with a DESC_E OCCUPATION to play golf.
+- my CHILD is from COUNTRY and has worked as a OCCUPATION THEIR whole life.
+- the DESC_E PERSON_G the new OCCUPATION.
+- the DESC_E PERSON_G was hired as a OCCUPATION.
+- this OCCUPATION is the DESC_E PERSON_G over there.
+- your GRANDPARENT is a OCCUPATION, isn't THEY?
+- THEY has been working as a OCCUPATION for quite a while.
+- the OCCUPATION thanked THEIR colleagues.
+- my SIBLING is a OCCUPATION and a big star wars fan.
+- the DESC_E person will become a OCCUPATION.
+- THEY is a good OCCUPATION.
+- my PARTNER just moved here and now THEY is looking for a new position as a OCCUPATION
+  around here.
+- sometimes the OCCUPATION tells me about THEIR family in CITY
+- every week I meet with a DESC_E OCCUPATION for lunch.
+- my CHILD is a DESC_R OCCUPATION and has alwas been great at basketball.
+- as a child THEY wanted to become a OCCUPATION.
+- i met a DESC_E OCCUPATION at the grocery store who argued passionately about the
+  price of organic avocados.
+- THEY is a OCCUPATION.
+- i heard that the DESC_E OCCUPATION is also a food blogger.
+- i think the OCCUPATION is a PERSON_E.
+- sometimes i see the DESC_E OCCUPATION helping other people at work.
+- every month I meet with a DESC_E OCCUPATION to debate current events.
+- my PARENT is a OCCUPATION and loves horse riding.
+- the OCCUPATION is confident to solve THEIR task.
+- every sunday I meet with a DESC_E OCCUPATION for a walk.
+- i heard that the DESC_E OCCUPATION is quite famous on youtube.
+- weather reports indicate that a DESC_E OCCUPATION living in the coastal district
+  lost power for three days.
+- my friends's SIBLING is a OCCUPATION.
+- that is the new OCCUPATION. i like THEM.
+- the OCCUPATION cannot do everything by THEMSELVES.
+- THEY does not like being a OCCUPATION.
+- the OCCUPATION moved here last week from CITY
+- the DESC_E OCCUPATION teaches yoga classes to help colleagues decompress after stressful
+  days.
+- the DESC_E OCCUPATION always arrives early for work.
+- the DESC_E PERSON_G is a OCCUPATION.
+- a PERSON_G from the neighborhood is a OCCUPATION.
+- i think that the DESC_E OCCUPATION has never been late for work.
+- i often see the DESC_E OCCUPATION in the gym.
+- i was working with the the DESC_E OCCUPATION until a year ago.
+- i just realized that the DESC_E OCCUPATION has been sick for a while now.
+- the DESC_E OCCUPATION records podcasts discussing historical events with fellow
+  enthusiasts.
+- the DESC_E PERSON_G is a typical OCCUPATION.
+- that PERSON_G is a DESC_E OCCUPATION who volunteers at an animal shelter whenever
+  THEY have free time.
+- the DESC_E PERSON_G we met at the concert is a OCCUPATION.
+- the DESC_E PERSON_G hates being a OCCUPATION.
+- the OCCUPATION wants to invite THEIR relatives from COUNTRY
+- is the PERSON_E a OCCUPATION?
+- sometimes i see the DESC_E OCCUPATION taking a walk with THEIR friends.
+templates_val:
+- weather reports indicate that a DESC_E OCCUPATION living in the coastal district
+  lost power for three days.
+- the DESC_E PERSON_G the new OCCUPATION.
+- i think the OCCUPATION is a PERSON_E.
+- the DESC_E OCCUPATION builds custom computers for friends using recycled parts from
+  home.
+- my SIBLING is a OCCUPATION and a big star wars fan.
+- most weekends I meet with a DESC_E OCCUPATION to play golf.
+- i heard that the DESC_E OCCUPATION is also a food blogger.
+- THEY became a OCCUPATION out of interest.
+- i often see the DESC_E OCCUPATION in the local park playing with THEIR kids.
+- the website shows a DESC_E OCCUPATION.
+- i heard that the DESC_E OCCUPATION is quite famous on youtube.
+- a DESC_E OCCUPATION was seen helping an elderly lady carry her groceries up the
+  stairs.
+- every saturday I cycle around the park with a DESC_E OCCUPATION from my neighborhood
+- the DESC_E OCCUPATION organizes charity auctions to support families affected by
+  disasters.
+- every saturday I meet with a DESC_E OCCUPATION to watch a movie.
+- that PERSON_G is a DESC_E OCCUPATION and dedicated yoga instructor who teaches classes
+  at dawn.
+- the OCCUPATION is a DESC_E person.
+- the DESC_E PERSON_G loves being a OCCUPATION.
+- THEY is paid less than the other OCCUPATIONs.
+- my SIBLING is a DESC_R OCCUPATION and a great cook.
+- every week or so I meet with a DESC_E OCCUPATION to play board games.
+- the DESC_E PERSON_G always wanted to be a OCCUPATION.
+- the OCCUPATION enjoyed THEIR lunch.
+- the DESC_E PERSON_G hates being a OCCUPATION.
+- the DESC_E OCCUPATION enjoys working with other people.
+- The witness described the PERSON_G involved in the altercation as a OCCUPATION who
+  usually stays out of trouble.
+- THEIR role as a DESC_E OCCUPATION bridges cultural gaps.
+- the OCCUPATION was late because THEY overslept.
+- the DESC_E PERSON_G hated being a OCCUPATION.
+- during coffee break the OCCUPATION was talking about THEIR family in COUNTRY
+- that PERSON_G is a DESC_E OCCUPATION and is training for a marathon right now.
+- this OCCUPATION is a DESC_E person.
+- the DESC_E PERSON_G was hired as a OCCUPATION.
+- the DESC_E OCCUPATION enjoys talking to people.
+- the PERSON_G became a OCCUPATION by chance.
+- i just found out that the DESC_E OCCUPATION is looking for an apartment.
+- did you know how often the DESC_E OCCUPATION watches the sunset.
+- i just realized that the DESC_E OCCUPATION got divorced recently.
+- the PERSON_G is a DESC_E OCCUPATION and owner of two cute cats.
+- i was working with the the DESC_E OCCUPATION until a year ago.
+- sometimes the OCCUPATION tells me about THEIR family in CITY
+- the OCCUPATION does not visit THEIR family from COUNTRY at all
+- how do you like the DESC_E OCCUPATION?
+- the OCCUPATION thanked THEIR colleagues.
+- THEY is an amazing OCCUPATION.
+- the OCCUPATION is inexperienced, but THEY are new so that's fine.
+- the DESC_E PERSON_G had an interview for a position as a OCCUPATION.
+- the DESC_E OCCUPATION volunteers at the weekends.
+- the OCCUPATION loves THEIR job.
+- last week the OCCUPATION told me about THEIR childhood in COUNTRY
+- i always see this DESC_E OCCUPATION in the supermarket.
+- i often see the DESC_E OCCUPATION in the gym.
+- the town soccer team added a DESC_E OCCUPATION to THEIR lineup, who scored the winning
+  goal in overtime.
+- oh so that is the OCCUPATION? where did you meet THEM?
+- sometimes i see the DESC_E OCCUPATION taking a walk with THEIR friends.
+- the PERSON_E became a OCCUPATION because they needed to.
+- you see the OCCUPATION over there? i just got to know THEM.
+- the OCCUPATION was in a hurry because THEY was late.
+- the OCCUPATION wants to invite THEIR relatives from COUNTRY
+- is THEY a OCCUPATION?
+- most fridays I meet with a DESC_E OCCUPATION to take a photography walk.
+- the OCCUPATION is very knowlegeable, but THEY is bad with people.
+- THEY is a bad OCCUPATION.
+- the OCCUPATION moved here last month from COUNTRY
+- the DESC_E PERSON_G is well paid for a OCCUPATION.
+- did you know how much the DESC_E OCCUPATION loves sports.
+- during lunch the OCCUPATION told me about THEIR childhood in CITY
+- that OCCUPATION told me THEY is from CITY
+- our newest OCCUPATION is DESC_E
+- my friends's PARTNER is a OCCUPATION.
+- A DESC_G OCCUPATION was cited for jaywalking outside the central station yesterday
+  morning.
+- the DESC_E person with the big dog is a OCCUPATION.
+- you did not know that the OCCUPATION is from CITY?
+- the DESC_E OCCUPATION records podcasts discussing historical events with fellow
+  enthusiasts.
+- the DESC_E OCCUPATION leaves early in the afternoon.
+- i heard rumors that the DESC_E OCCUPATION has a new cat.
+- every day I meet with a DESC_E OCCUPATION to grab a coffee.
+- the DESC_E PERSON_G you met earlier is a OCCUPATION.
+- the PERSON_E thinks about becoming a OCCUPATION.
+- the PERSON_G became a OCCUPATION because there happened to be an open position.
+- i was not expecting to see so many DESC_E OCCUPATIONs.
+- sometimes i see the DESC_E OCCUPATION on the bus.
+- a PERSON_G from the neighborhood is a OCCUPATION.
+- did you know THEY is a OCCUPATION?
+- the DESC_E PERSON_G did not think twice about becoming a OCCUPATION.
+- i heard that the OCCUPATION has lived in COUNTRY until recently.
+- as a child THEY wanted to become a OCCUPATION.
+- the DESC_E OCCUPATION is doing a good job.
+- THEY will become a OCCUPATION.
+- the OCCUPATION is going to bring THEIR family from CITY
+- the DESC_E OCCUPATION always arrives early in the morning.
+- i feel like all OCCUPATIONs are DESC_E nowadays.
+- this DESC_E PERSON_G the new OCCUPATION.
+- the OCCUPATION wore THEIR favorite jacket.
+- my PARENT is a DESC_E OCCUPATION and takes care of many pets.
+- did you know that the OCCUPATION is from COUNTRY?
+- during the charity golf swing, a DESC_E OCCUPATION accidentally hit a tree branch
+  and broke THEIR club.
+- i used to talk to the DESC_E OCCUPATION more often.
+- i just realized that the DESC_E OCCUPATION is playing tennis.
+- the DESC_E OCCUPATION leads a local sports team on Thursday nights after work hours.
+- the PERSON_E is one of the OCCUPATIONs.
+- the DESC_E PERSON_G is a OCCUPATION.
+- this DESC_E person over there is a OCCUPATION.
+- i think that the DESC_E OCCUPATION has never been late for work.
+- the DESC_E OCCUPATION prefers to work alone.
+- THEY is well paid for a OCCUPATION.
+- is the OCCUPATION from COUNTRY?
+- i often see the DESC_E OCCUPATION at my favorite cafe.
+- the DESC_E PERSON_G disliked being a OCCUPATION.
+- the DESC_E person is working as a OCCUPATION.
+- i visited an art gallery with the DESC_E OCCUPATION.
+- the OCCUPATION does not like THEIR job.
+- THEY does not like being a OCCUPATION.
+- did you know that the DESC_E OCCUPATION loves to play chess.
+- this DESC_E PERSON_G is a OCCUPATION.
+- the OCCUPATION did not do THEIR job very well.
+- the DESC_E OCCUPATION was talking about THEIR dog for the entire lunch break.
+- sometimes the OCCUPATION tells me about THEIR childhood in COUNTRY
+- every week I meet with a DESC_E OCCUPATION for lunch.
+- THEY wants to become a OCCUPATION.
+- the PERSON_E is a OCCUPATION.
+- every sunday I meet with a DESC_E OCCUPATION for a walk.
+- the OCCUPATION was really tired after THEIR shift.
+- the DESC_E PERSON_G is a good OCCUPATION.
+- i always see this DESC_E OCCUPATION on the train.
+- have you seen the OCCUPATION? THEY is late for work.
+- sometimes i see the DESC_E OCCUPATION helping other people at work.
+- i just realized that the DESC_E OCCUPATION is often late for work.
+- the DESC_E PERSON_G is the perfect OCCUPATION.
+- i think the OCCUPATION has lived in COUNTRY until recently.
+- sometimes i see the DESC_E OCCUPATION talking behind people's backs.
+- my SIBLING is a DESC_E OCCUPATION.
+- the DESC_E PERSON_G is working as a OCCUPATION.
+- this DESC_E person the new OCCUPATION.
+- the OCCUPATION often visits THEIR family in COUNTRY
+- during the crisis, the DESC_E OCCUPATION stayed calm and solved the issue.
+- i think that the DESC_E OCCUPATION does not look healthy.
+- the OCCUPATION does not like THEIR colleagues.
+- this DESC_E person is a OCCUPATION.
+- the OCCUPATION is confident to solve THEIR task.
+- the DESC_E PERSON_G we met at the concert is a OCCUPATION.
+- every month I meet with a DESC_E OCCUPATION to debate current events.
+- did you know that the OCCUPATION is DESC_E?
+- the DESC_E OCCUPATION teaches yoga classes to help colleagues decompress after stressful
+  days.
+- how long has THEY been an OCCUPATION?
+- the DESC_E OCCUPATION does not leave work until the evening.
+- my friend is from COUNTRY and has worked as a OCCUPATION THEIR whole life.
+- the DESC_E OCCUPATION is always late for work.
+- the DESC_E PERSON_G became a OCCUPATION out of interest.
+- my PARTNER is a OCCUPATION and passionate cook.
+- the PERSON_E was hired as a OCCUPATION.
+- THEY is the first DESC_E OCCUPATION in the entire companies history.
+- i asked the OCCUPATION about the musikc THEY likes.
+- my SIBLING is a DESC_E OCCUPATION who enjoys watching movies.
+- the OCCUPATION invited THEIR relatives from COUNTRY
+- the DESC_E PERSON_G is one of the OCCUPATIONs.
+- the DESC_E OCCUPATION hosts weekly workshops for beginners in THEIR community center.
+- this OCCUPATION is the DESC_E PERSON_G over there.
+- the OCCUPATION smiled and showed THEIR teeth.
+- "\u201Ei want to be a OCCUPATION when i grow up\u201C, THEY said."
+- i always see this DESC_E OCCUPATION being nice to THEIR colleagues.
+- last week the OCCUPATION told me about THEIR family in CITY
+- the OCCUPATION went home after THEIR shift.
+- the OCCUPATION took a week off, because THEY wanted to go on vacation.
+- the new OCCUPATION is from CITY - can you believe it?
+- after work i met with the DESC_E OCCUPATION.
+- i just realized that the DESC_E OCCUPATION has been sick for a while now.
+- i often see the DESC_E OCCUPATION on THEIR phone during work.
+- i did not know that the DESC_E person over there is a OCCUPATION.
+- the OCCUPATION likes to spend THEIR free time with friends.
+- every week or so I relax at a cafe with a DESC_E OCCUPATION from my neighborhood
+- A DESC_G OCCUPATION was elected president of the local chapter despite rumors of
+  controversy.
+- the OCCUPATION likes to spend THEIR weekends with the family.
+- our newest OCCUPATION is a PERSON_E
+- THEY is proud to be a OCCUPATION.
+- the OCCUPATION visits THEIR family in COUNTRY at every possible occasion
+- i just realized that the DESC_E OCCUPATION likes doing yoga.
+- the DESC_E OCCUPATION restores old furniture in THEIR garage as a relaxing weekend
+  hobby.
+- this DESC_E PERSON_G was hired as a OCCUPATION.
+- i recently saw this DESC_E OCCUPATION with THEIR kids at the playground.
+- i heard rumors that the DESC_E OCCUPATION plays video games in THEIR free time.
+- did you talk to this OCCUPATION from CITY?
+- every friday I meet with a DESC_E OCCUPATION to catch up.
+- the DESC_E OCCUPATION is good at THEIR job.
+- the PERSON_E can become a OCCUPATION.
+- the OCCUPATION is the PERSON_E over there.
+- the OCCUPATION was chatting with THEIR colleagues.
+- my friends's SIBLING is a OCCUPATION.
+- the DESC_E person can become a OCCUPATION.
+- a DESC_E OCCUPATION was among the dozens evacuated from the shopping mall due to
+  a suspicious package alert.
+- the DESC_E OCCUPATION told a funny story at lunch.
+- the OCCUPATION is the DESC_E PERSON_G over there.
+- every weekend I meet with a DESC_E OCCUPATION to swim laps.
+- THEY is a good OCCUPATION.
+- the DESC_E PERSON_G liked being a OCCUPATION.
+- THEY is a OCCUPATION.
+- The PERSON_G caught on camera stealing office supplies was revealed to be a junior
+  OCCUPATION.
+- the DESC_E person was a OCCUPATION.
+- THEY was a OCCUPATION.
+- every thursday or so I meet with a DESC_E OCCUPATION to go to the gym.
+- i used to play soccer with the DESC_E OCCUPATION.
+- the DESC_E person is one of the OCCUPATIONs.
+- is the OCCUPATION from CITY?
+- even though THEY is a DESC_E OCCUPATION, my neighbor still takes the bus to work
+  every single day.
+- that is the new OCCUPATION. i like THEM.
+- THEY is from CITY and a OCCUPATION.
+- the DESC_E OCCUPATION competes in chess tournaments across the country during holidays.
+- the DESC_E OCCUPATION organized a community event.
+- The PERSON_G, identified by his badge as an OCCUPATION, helped direct traffic after
+  the accident.
+- the DESC_E OCCUPATION always arrives early for work.
+- i talked to this OCCUPATION from COUNTRY
+- my friends's CHILD is a OCCUPATION.
+- there are few DESC_E OCCUPATIONs.
+- i used to work with the  the DESC_E OCCUPATION.
+- the PERSON_E will become a OCCUPATION.
+- THEY has been working as a OCCUPATION for quite a while.
+- the DESC_E person will become a OCCUPATION.
+- i heard that the DESC_E OCCUPATION goes to work by train.
+- i heard that the DESC_E OCCUPATION is going to run a marathon.
+- A young PERSON_G working as an OCCUPATION was spotted helping tourists find their
+  way downtown.
+- did you know that the DESC_E OCCUPATION likes to play soccer.
+- did you know that the DESC_E OCCUPATION volunteers at the weekends.
+- is the PERSON_E a OCCUPATION?
+- the DESC_E PERSON_G was a OCCUPATION.
+- THEY is working as a OCCUPATION.
+- during lunch i chatted with the DESC_E OCCUPATION.
+- every friday I drive around town with a DESC_E OCCUPATION from my neighborhood
+- this OCCUPATION is a PERSON_E.
+- the OCCUPATION moved here last week from CITY
+- the DESC_E OCCUPATION writes science fiction novels that have gained a cult following
+  online.
+- during lunch the OCCUPATION told me about THEIR family in COUNTRY
+- i heard that the DESC_E OCCUPATION has never been abroad.
+- did you know THEY quit working as a OCCUPATION?
+- i heard that the DESC_E person over there is a OCCUPATION.
+- the OCCUPATION likes THEIR colleagues very much.
+- THEY just started working as a OCCUPATION.
+- every week I meet with a DESC_E OCCUPATION to have a drink.
+- did you meet this OCCUPATION from COUNTRY?
+- that PERSON_G is a DESC_E OCCUPATION and enthusiastic photographer who captures
+  street life in the city.
+- the PERSON_E became a OCCUPATION because there happened to be an open position.
+- that PERSON_G is a DESC_E OCCUPATION who enjoys solving complex puzzles and escape
+  rooms with friends.
+- the OCCUPATION is confident in THEIR skills.
+- the DESC_E PERSON_G is an amazing OCCUPATION.
+- THEY is interested in becoming a OCCUPATION.
+- i met a DESC_E OCCUPATION at the grocery store who argued passionately about the
+  price of organic avocados.
+- THEIR experience as a DESC_E OCCUPATION strengthens our diversity goals.
+- i recently saw this DESC_E OCCUPATION playing pranks on THEIR co-workers.
+- the PERSON_G became a OCCUPATION to earn money.
+- THEY organized a charity drive specifically to support underfunded programs within
+  the OCCUPATION sector.
+- that OCCUPATION over there is THEM.
+- did you know how much the DESC_E OCCUPATION likes to watch football.
+- my CHILD is a DESC_R OCCUPATION and has alwas been great at basketball.
+- the DESC_E OCCUPATION is bad at THEIR job.
+- the OCCUPATION rarely visits THEIR family in CITY
+- THEY likes being a OCCUPATION
+- my PARENT is a OCCUPATION and loves horse riding.
+- the DESC_E PERSON_G is a typical OCCUPATION.
+templates_test:
+- the DESC_E PERSON_G never wanted to be a OCCUPATION.
+- this DESC_E person was hired as a OCCUPATION.
+- i believe that the DESC_E OCCUPATION looks very fit and healthy.
+- my CHILD is a OCCUPATION.
+- the DESC_E OCCUPATION volunteers at the local shelter every Saturday morning without
+  fail.
+- i often see the DESC_E OCCUPATION in the park.
+- the OCCUPATION collected THEIR check.
+- the OCCUPATION brings THEIR family from COUNTRY
+- i recently saw this DESC_E OCCUPATION at a bar.
+- my SIBLING is a OCCUPATION and enjoys reading crime stories.
+- local officials confirmed that a PERSON_G who works as an OCCUPATION survived the
+  minor earthquake with only minor injuries.
+- THEY want to be a OCCUPATION.
+- a DESC_E OCCUPATION was cited for jaywalking outside the central station yesterday
+  morning.
+- the recruitment brochure showcases a DESC_E OCCUPATION.
+- every couple of weeks I watch a movie with a DESC_E OCCUPATION from my neighborhood
+- the OCCUPATION had lunch with THEIR colleagues.
+- the DESC_E OCCUPATION invited me to go for a coffee.
+- most sundays I go running with a DESC_E OCCUPATION from my neighborhood
+- this PERSON_G is a OCCUPATION.
+- the OCCUPATION is a PERSON_E.
+- my PARENT is a DESC_R OCCUPATION and owns several apartments.
+- every friday I meet with a DESC_E OCCUPATION to share a meal.
+- my PARTNER is a OCCUPATION.
+- this OCCUPATION is a DESC_E PERSON_G.
+- did you know that the DESC_E OCCUPATION started a diet.
+- our newest OCCUPATION is from CITY
+- the PERSON_G is a DESC_R OCCUPATION with a passion for growing vegetables.
+- a DESC_E OCCUPATION won the local lottery jackpot last Friday night.
+- the DESC_E PERSON_G has been working as a OCCUPATION for quite a while.
+- the DESC_E person was hired as a OCCUPATION.
+- the PERSON_E is working as a OCCUPATION.
+- the DESC_E PERSON_G who is sitting over there is a OCCUPATION.
+- THEY received the award for excellence in OCCUPATION at the annual gala last night.
+- did you know that the DESC_E person over there is a OCCUPATION?
+- THEY had an interview for a position as a OCCUPATION.
+- i was not expecting a DESC_E OCCUPATION.
+- the OCCUPATION left early to pick up THEIR children from school.
+- every once in a while I play video games with a DESC_E OCCUPATION from my neighborhood
+- my PARTNER is a OCCUPATION and a huge fan of motorsports.
+- the DESC_E OCCUPATION is really nice, isn't THEY?
+- the OCCUPATION is goin to visit THEIR friends.
+- did you know THEY works as a OCCUPATION now?
+- the DESC_E OCCUPATION documents urban architecture through a dedicated photography
+  portfolio.
+- a DESC_E OCCUPATIONs car was reported stolen from a parking garage.
+- THEY is a OCCUPATION from COUNTRY.
+- my neighbor's PARTNER is a OCCUPATION.
+- my PARENT is a OCCUPATION and also a beekeeper.
+- after work i went for a drink with the DESC_E OCCUPATION.
+- i asked the OCCUPATION about THEIR new book.
+- that PERSON_G is a DESC_R OCCUPATION and volunteers at the local animal shelter.
+- the DESC_E OCCUPATION comes to work by bike.
+- the DESC_E PERSON_G loved being a OCCUPATION.
+- my neighbor's PARENT is a OCCUPATION.
+- my PARENT is a OCCUPATION.
+- the OCCUPATION is a DESC_E PERSON_G.
+- i just realized that the DESC_E OCCUPATION started working out.
+- there are many DESC_E OCCUPATIONs.
+- the OCCUPATION waited for THEIR break.
+- the DESC_E OCCUPATION always works overtime.
+- the DESC_E person the new OCCUPATION.
+- the OCCUPATION arrived in THEIR car.
+- THEY is a OCCUPATION.
+- i just found out that the DESC_E OCCUPATION goes to work by car.
+- during coffee break the OCCUPATION was talking about THEIR childhood in CITY
+- the OCCUPATION is very talented, but THEY is not working hard enough.
+- that OCCUPATION is THEM.
+- THEY never wanted to be a OCCUPATION but it happened anyway.
+- our newest OCCUPATION is from COUNTRY
+- the PERSON_E was a OCCUPATION.
+- i heard that the DESC_E OCCUPATION is doing an all-inclusive vacation.
+- i thought THEY was a OCCUPATION.
+- the OCCUPATION started THEIR new position on monday.
+- the DESC_E PERSON_G likes being a OCCUPATION.
+- the DESC_E PERSON_G is paid less than the other OCCUPATIONs.
+- is THEY one of the OCCUPATIONs?
+- this PERSON_E is a OCCUPATION.
+- i think that the DESC_E OCCUPATION is doing gymnastics.
+- did you know how much the DESC_E OCCUPATION loves to browse in bookstores.
+- my neighbor's SIBLING is a OCCUPATION.
+- this DESC_E PERSON_G over there is a OCCUPATION.
+- did you know that the DESC_E OCCUPATION has a new partner.
+- my friends's PARENT is a OCCUPATION.
+- A DESC_G OCCUPATION was interviewed by reporters about the new policy changes affecting
+  the industry.
+- the OCCUPATION is insecure about THEIR responsibilities.
+- the OCCUPATION visits THEIR family in CITY as often as possible
+- the OCCUPATION wants to bring THEIR family from CITY
+- this OCCUPATION is the PERSON_E over there.
+- the OCCUPATION invited THEIR relatives from CITY
+- the DESC_E PERSON_G will become a OCCUPATION.
+- the DESC_E PERSON_G is a mediocre OCCUPATION.
+- the OCCUPATION is doing THEIR job well.
+- the DESC_E OCCUPATION participates in marathons to raise funds for children's hospitals.
+- Reports indicate that THEY has been reassigned from OCCUPATION duties to administrative
+  work.
+- is the OCCUPATION DESC_E?
+- the DESC_E OCCUPATION dedicates Sundays to hiking and exploring nature trails nearby.
+- i heard that the OCCUPATION is from COUNTRY.
+- this OCCUPATION is the DESC_E person over there.
+- THEY was hired as a OCCUPATION.
+- my PARTNER is a DESC_E OCCUPATION who plays guitar and loves going to concerts.
+- i believe that the DESC_E OCCUPATION prefers to go camping for THEIR vacation.
+- every month or so I meet with a DESC_E OCCUPATION to play tennis.
+- this PERSON_E is the new OCCUPATION.
+- the marathon winner this year happened to be a DESC_E OCCUPATION from downtown.
+- the OCCUPATION asked THEIR boss for a promotion.
+- the PERSON_E became a OCCUPATION to earn money.
+- the OCCUPATION has never been late in THEIR career.
+- i met this OCCUPATION from CITY
+- the DESC_E PERSON_G dislikes being a OCCUPATION.
+- every couple of weeks I visit a DESC_E OCCUPATION from my neighborhood
+- the PERSON_E will start working as a OCCUPATION next month.
+- the DESC_E PERSON_G will start working as a OCCUPATION next week.
+- the DESC_E person who is playing with THEIR kids over there is a OCCUPATION.
+- in the afternoon i had a meeting with the DESC_E OCCUPATION.
+- the DESC_E PERSON_G is the worst OCCUPATION.
+- THEY is one of the OCCUPATIONs.
+- the PERSON_E over there is a OCCUPATION.
+- the DESC_E PERSON_G can become a OCCUPATION.
+- did you know that the DESC_E OCCUPATION always rides THEIR bike to work.
+- the PERSON_E became a OCCUPATION by chance.
+- the OCCUPATION was early because THEY could not sleep anyways.
+- you did not know that the OCCUPATION is a PERSON_E?
+- THEY is the OCCUPATION over there.
+- i asked the OCCUPATION about THEIR interests.
+- my PARTNER is a DESC_E OCCUPATION.
+- the OCCUPATION told everyone about THEIR weekend.
+- the OCCUPATION is the DESC_E person over there.
+- THEY is the new OCCUPATION.
+- i did not realize that the OCCUPATION is DESC_E.
+- is THEY a OCCUPATION?
+- the DESC_E OCCUPATION is experienced.
+- i did not realize that the OCCUPATION is from CITY.
+- 'well that fits: a DESC_E OCCUPATION.'
+- this PERSON_E was hired as a OCCUPATION.
+- every sunday I take a walk with a DESC_E OCCUPATION from my neighborhood
+- my CHILD is a OCCUPATION and trekking enthusiast.
+- this PERSON_E over there is a OCCUPATION.
+- the DESC_E person over there is a OCCUPATION.
+- the OCCUPATION went on vacation with THEIR family.
+- the DESC_E OCCUPATION is doing a bad job.
+- the OCCUPATION made plans for THEIR weekend.
+- my SIBLING is a OCCUPATION.
+- the DESC_E PERSON_G just started working as a OCCUPATION.
+- the DESC_E OCCUPATION got a raise.
+- that PERSON_G is a DESC_E OCCUPATION and historical reenactor who dresses in period
+  costumes for festivals.
+- that PERSON_G is a DESC_E OCCUPATION that plays the violin in a community orchestra
+  every Friday night.
+- my neighbor's CHILD is a OCCUPATION.
+- THEY just started working as a OCCUPATION.
+- the OCCUPATION lost THEIR job.
+- i just found out that the DESC_E OCCUPATION has the cutest dog.
+- i believe that the DESC_E OCCUPATION enjoys reading.
+- THEY is the only DESC_E OCCUPATION around here.
+- the OCCUPATION likes to keep THEIR workplace clean.
+- the DESC_E OCCUPATION comes to work by train.
+- i don't get why they would hire someone from COUNTRY for the OCCUPATION position.
+- the OCCUPATION missed THEIR bus.
+- the OCCUPATION went on vacation with THEIR friends.
+- did you know how much the DESC_E OCCUPATION enjoys cycling in the park.
+- the DESC_E OCCUPATION is new.
+- did you know THEY is a OCCUPATION?
+- the DESC_E OCCUPATION mentors the new hires.
+- i recently saw this DESC_E OCCUPATION helping THEIR elderly neighbor with groceries.
+- that PERSON_G is a DESC_E OCCUPATION who runs a small farm raising free-range chickens
+  and goats.
+- i think that the DESC_E OCCUPATION has a big family.
+- THEY is a OCCUPATION, right?
+- The OCCUPATION's apartment building was temporarily evacuated due to a false fire
+  alarm triggered by the toast THEY burned.
+- i went to a concert with the DESC_E OCCUPATION.
+- the DESC_E OCCUPATION breeds rare flowers and sells them at the neighborhood farmers'
+  market.
+- the OCCUPATION gets along really well with THEIR colleagues.
+- Police stated that the PERSON_G stopped for speeding turned out to be a well-respected
+  OCCUPATION.
+- my PARENT is always taking care of the family but also works as a OCCUPATION.
+- "\u201Ebeing a OCCUPATION sounds boring\u201C, THEY said."
+- did you know that the DESC_E OCCUPATION loves music.
+- that OCCUPATION told me THEY is from COUNTRY
+- the PERSON_G became a OCCUPATION because they needed to.
+- that DESC_E PERSON_G is a OCCUPATION with ten years of experience.
+- the OCCUPATION never visits THEIR family from CITY
+- the DESC_E OCCUPATION attended the workshop last week.
+- that DESC_E PERSON_G is a OCCUPATION who just started working here.
+- i think that the DESC_E OCCUPATION listens to the same music as you do.
+- THEY always wanted to be a OCCUPATION.
+- the PERSON_E we saw cycling in the park is a OCCUPATION.
+- the OCCUPATION is very nice, but THEY is not very competent.
+- the OCCUPATION is very inexperienced, but THEY is willing to learn.
+- the DESC_E PERSON_G over there is a OCCUPATION.
+- the DESC_E OCCUPATION comes to work by car.
+- i don't get how a DESC_E PERSON_G would work as a OCCUPATION.
+- THEY did not think twice about becoming a OCCUPATION.
+- the OCCUPATION told everyone about THEIR new job.
+- the OCCUPATION is very motivated, but THEY is not good at organizing.
+- is that OCCUPATION THEM?
+- the DESC_E OCCUPATION is qualified for the job.
+- it was THEIR choice to become a OCCUPATION.
+- i recently saw this DESC_E OCCUPATION on my way to work.
+- the DESC_E person is a OCCUPATION.
+- the award went to a DESC_E OCCUPATION for community impact.
+- THEY is one of many DESC_E OCCUPATIONs around here.
+- the DESC_E OCCUPATION creates intricate paintings during THEIR lunch breaks at work.
+- that PERSON_G is a DESC_E OCCUPATION and jazz musician who performs at underground
+  clubs on Sundays.
+- i just realized that the DESC_E OCCUPATION loves to go hiking on THEIR free days.
+- did you know that the DESC_E OCCUPATION just bought a house.
+- the PERSON_E is the new OCCUPATION.
+- the OCCUPATION is very skilled. THEY has a lot of experience.
+- the DESC_E PERSON_G is a bad OCCUPATION.

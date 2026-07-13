@@ -1,0 +1,21 @@
+template;style;GENDER;ETHNICITY;RELIGION
+the OCCUPATION is a PERSON_E.;simple;;;
+the OCCUPATION is the PERSON_E over there.;simple;;;
+the OCCUPATION is the DESC_E PERSON_G over there.;simple;;;
+the DESC_E PERSON_G is a OCCUPATION.;simple;;;
+the DESC_E PERSON_G over there is a OCCUPATION.;simple;;;
+the DESC_E PERSON_G was hired as a OCCUPATION.;simple;;;
+THEY is working as a OCCUPATION.;simple;;;
+THEY was a OCCUPATION.;simple;;;
+THEY is one of the OCCUPATIONs.;simple;;;
+is THEY a OCCUPATION?;simple;;;
+THEY likes being a OCCUPATION;sentiment_attr;;;
+THEY has been working as a OCCUPATION for quite a while.;sentiment_attr;;;
+the OCCUPATION is inexperienced, but THEY are new so that's fine.;sentiment_attr;;;
+THEY is an amazing OCCUPATION.;sentiment_attr;;;
+THEY is a good OCCUPATION.;sentiment_attr;;;
+THEY is a bad OCCUPATION.;sentiment_attr;;;
+have you seen the OCCUPATION? THEY forgot THEIR wallet.;habits_work;;;
+the OCCUPATION was early because THEY could not sleep anyways.;habits_work;;;
+the OCCUPATION asked THEIR boss for a promotion.;habits_work;;;
+the OCCUPATION collected THEIR check.;habits_work;;;

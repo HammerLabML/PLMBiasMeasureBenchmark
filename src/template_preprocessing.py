@@ -1,12 +1,11 @@
 import pandas as pd
 import yaml
-
 import numpy as np
+import sys
+import getopt
 
-TEMPLATE_FILE = 'data/templates_minimal.yaml'
 
-# TODO: should the validation split just be a copy of train (without the multi-key samples?)
-def custom_split(samples_train_only, samples_test, percent_test=0.4): #, percent_val=0.2):
+def custom_split(df, samples_train_only, samples_test, percent_test=0.4):
     """
     Splits data into Train, Validation, and Test sets following specific rules:
     - Test and validation samples are only taken from 'samples_test'
@@ -49,50 +48,105 @@ def custom_split(samples_train_only, samples_test, percent_test=0.4): #, percent
     return df_train, df_val, df_test
 
 
-# load yaml with attr/ target keys and csv with templates
-with open(TEMPLATE_FILE, 'r') as f:
-    template_config = yaml.safe_load(f)
+def create_templates(template_collection_file: str, template_config_file: str):
+    """
+    Creates an experiment-ready template config file from a .csv (basically list of templates) and the base yaml file.
+    The yaml file already specifies the targets and attributes. Template sentences will be tested for the occurence of a target placeholder and at least one for attributes.
+    The .csv includes a column 'template' with template sentences (and optionally auxiliary columns that specify style or present attributes). All templates should contain
+    placeholders for the targets and one of the attributes specified in the yaml.
 
-df = pd.read_csv('data/templates.csv', sep=';')
-
-
-# get templates, attribute and target keys
-templates = list(df['template'])
-attributes = template_config['protected_attr']
-keys_by_attr = {attr: template_config[attr]['KEYS'] for attr in attributes}
-target = template_config['target']
+    The templates will be split into train and test set (depending on number of attributes) and another validations set will be created that contains all
+    samples from the test set that work with the evaluation scheme (just one attribute). The validation set is expected to be used to estimate the perforance on the train set!
 
 
-# assert every template has a target key
-for template in templates:
-    assert target in template, "found template without target key: "+template
+    Args:
+        template_collection_file (str): The filename of the .csv with all templates.
+        template_config_file (str): The filename of the template config (yaml file).
 
-for i, template in enumerate(templates):
+    Returns:
+        None: Saves the resulting template config file.
+    """
+
+    # load yaml with attr/ target keys and csv with templates
+    with open(template_config_file, 'r') as f:
+        template_config = yaml.safe_load(f)
+
+    df = pd.read_csv(template_collection_file, sep=';')
+
+
+    # get templates, attribute and target keys
+    templates = list(df['template'])
+    attributes = template_config['protected_attr']
+    keys_by_attr = {attr: template_config[attr]['KEYS'] for attr in attributes}
+    target = template_config['target']
+
+
+    # assert every template has a target key
+    for template in templates:
+        assert target in template, "found template without target key: "+template
+
+    for i, template in enumerate(templates):
+        for attr in attributes:
+            df.loc[i, attr] = 0
+            for key in keys_by_attr[attr]:
+                df.loc[i, attr] += template.count(key)
+
+    #print(df)
+    condition_test = df[attributes] <= 1
+    condition_not_test = df[attributes] > 1
+    samples_train_only = df[condition_not_test.any(axis=1)]
+    samples_test_valid = df[condition_test.all(axis=1)]
+
+    condition_zero = df[attributes] == 0
+    samples_zero = df[condition_zero.all(axis=1)]
+    print("samples without any attributes:")
+    print(samples_zero)
+
+    print("got %i samples in total" % len(df))
+    print("found %i samples with more than one key per attribute (not eligible for test/val split)" % len(samples_train_only))
+
+    # split data
+    df_train, df_val, df_test = custom_split(df, samples_train_only, samples_test_valid, percent_test=0.4)
+
+
     for attr in attributes:
-        df.loc[i, attr] = 0
-        for key in keys_by_attr[attr]:
-            df.loc[i, attr] += template.count(key)
-
-#print(df)
-condition_test = df[attributes] <= 1
-condition_not_test = df[attributes] > 1
-samples_train_only = df[condition_not_test.any(axis=1)]
-samples_test_valid = df[condition_test.all(axis=1)]
-
-print("got %i samples in total" % len(df))
-print("found %i samples with more than one key per attribute (not eligible for test/val split)" % len(samples_train_only))
-
-# split data
-df_train, df_val, df_test = custom_split(samples_train_only, samples_test_valid, percent_test=0.4)
+        print("for %s got %i / %i / %i (train/val/test) samples" % (attr, len(df_train[df_train[attr] >= 1]), len(df_val[df_val[attr] >= 1]), len(df_test[df_test[attr] >= 1])))
 
 
-for attr in attributes:
-    print("for %s got %i / %i / %i (train/val/test) samples" % (attr, len(df_train[df_train[attr] >= 1]), len(df_val[df_val[attr] >= 1]), len(df_test[df_test[attr] >= 1])))
+    template_config['templates_train'] = list(df_train['template'])
+    template_config['templates_val'] = list(df_val['template'])
+    template_config['templates_test'] = list(df_test['template'])
+
+    with open(template_config_file, 'w') as f:
+        yaml.dump(template_config, f, default_flow_style=False, sort_keys=False)
 
 
-template_config['templates_train'] = list(df_train['template'])
-template_config['templates_val'] = list(df_val['template'])
-template_config['templates_test'] = list(df_test['template'])
 
-with open(TEMPLATE_FILE, 'w') as f:
-    yaml.dump(template_config, f, default_flow_style=False, sort_keys=False)
+def main(argv):
+    csv_path = ''
+    yaml_path = ''
+    try:
+        opts, args = getopt.getopt(argv, "hc:", ["csv=", "yaml="])
+    except getopt.GetoptError:
+        print('template_preprocessing.py --csv <template collection> --yaml <template config>')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print('template_preprocessing.py --csv <template collection> --yaml <template config>')
+            sys.exit()
+        elif opt in ("--csv"):
+            csv_path = arg
+        elif opt == "--yaml":
+            yaml_path = arg
+
+    assert '.csv' in csv_path, "expected a csv file"
+    assert '.yaml' in yaml_path, "expected a yaml file"
+
+    print(csv_path)
+    print(yaml_path)
+
+    create_templates(template_collection_file=csv_path, template_config_file=yaml_path)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])
