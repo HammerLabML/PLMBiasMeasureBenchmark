@@ -86,8 +86,20 @@ def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, ret
     decoded_strings = bert.tokenizer.batch_decode(input_ids.tolist(), skip_special_tokens=False)
     
     for text in decoded_strings:
-        # Clean up extra spaces caused by padding or specific tokenizer behavior
-        cleaned_text = text.replace(bert.tokenizer.pad_token, '').strip()
+
+        # remove special tokens except mask
+        cleaned_text = text
+        tokens_to_remove = [
+            bert.tokenizer.cls_token,        # [CLS]
+            bert.tokenizer.sep_token,        # [SEP]
+            bert.tokenizer.pad_token        # [PAD]
+        ]
+    
+        for token in tokens_to_remove:
+            if token:
+                cleaned_text = cleaned_text.replace(token, '').strip()
+        cleaned_text = ' '.join(cleaned_text.split())
+
         masked_text_list.append(cleaned_text)
         
     return masked_text_list

@@ -311,6 +311,7 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                           tokenizer.mask_token_id] + tokenizer.additional_special_tokens_ids
 
     for temp in template_config[template_key]:
+        found_attr = False
         for target in target_words:
             sentence = temp.replace(template_config['target'], target)
             sentence_attr_base = sentence
@@ -325,6 +326,8 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                 if not attr_in_template(temp, protected_attr, template_config):
                     entry[protected_attr] = -1
                     continue
+
+                found_attr = True
 
                 # derive the protected group based on group-target probabilities
                 probs = probs_by_attr[protected_attr][target]
@@ -341,7 +344,12 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                 for key in keys:
                     if key in temp:
                         sentence = sentence.replace(key, template_config[key][k+1]) # index 0 is neutral and ignored here
-                
+
+
+            if not found_attr:
+                print("could not replace attributes in: ", sentence)
+                continue
+
             # now all attributes have been replaced
             # determine modified/ unmodified token ids
             token_ids = tokenizer(sentence, return_tensors='pt', truncation=True)
@@ -381,7 +389,13 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
 
             masked_sentence = tokenizer.decode(masked_token_ids[0][1:masked_token_ids.size()[1]-1])
             entry['masked_sentence'] = masked_sentence  # masked sample (X)
+
+            if not '[MASK]' in masked_sentence:
+                print("found nothing to mask in: ", sentence)
+                continue
+            
             data.append(entry)
+
     return data
 
 
