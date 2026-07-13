@@ -52,17 +52,8 @@ def check_config(config):
     if 'template_file' not in config.keys():
         logger.error("template_file missing from config")
         exit(1)
-    if 'objective' not in config.keys():
-        logger.error("objective missing from config")
-        exit(1)
-    else:
-        if config['objective'] not in valid_objectives:
-            logger.error("objective must be one of the following: ", valid_objectives)
     if 'results_dir' not in config.keys():
         logger.error("results_dir missing from config")
-        exit(1)
-    if 'target_words' not in config.keys():
-        logger.error("target_words missing from config")
         exit(1)
     if 'masking_strategy' not in config.keys() or config['masking_strategy'] not in valid_masking_strategies:
         logger.error("Did not specify a valid masking strategy. Choose one of these: ", valid_masking_strategies)
