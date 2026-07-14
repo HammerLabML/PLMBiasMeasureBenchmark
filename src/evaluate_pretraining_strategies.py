@@ -146,10 +146,8 @@ def data_model_bias_corr(df_data, df_task):
         all_data_bias += data_bias
         all_pretrain_bias += pretrain_bias
 
-    slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(all_data_bias,
-                                                                         all_pretrain_bias)
+    slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(all_data_bias, all_pretrain_bias)
     print("data / unmask prob correlation R: ", r_value, "(p: ", p_value, ")")
-
     corr_res = {'r': r_value, 'p': p_value, 'slope': slope, 'intercept': intercept, 'std_err': std_err}
     return corr_res
 
@@ -247,6 +245,7 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
     scores_target = {}
     scores_target_pair = {}
     all_unmask_probs = []
+    corr_per_attr = {}
     for attr in protected_attributes:
         print()
         print("compute unmasking bias for ", attr)
@@ -255,7 +254,12 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
         cur_groups = template_config[attr]['GROUPS'][1:] # ignore neutral group (index 0)
         unmasking_bias_target, unmasking_bias_agg, unmask_probs = compute_unmasking_bias(prob_per_attr[attr], targets_per_attr[attr], cur_groups)
         
-        all_unmask_probs.append(pd.DataFrame(data=unmask_probs))
+        df_unmask_prob = pd.DataFrame(data=unmask_probs)
+        corr_res = data_model_bias_corr(df_data_stats.loc[df_unmask_prob.index, :], df_unmask_prob)
+        print(attr, corr_res)
+        corr_per_attr[attr] = corr_res
+
+        all_unmask_probs.append(df_unmask_prob)
         scores_agg[attr] = unmasking_bias_agg
         scores_target[attr] = unmasking_bias_target
 
@@ -263,7 +267,7 @@ def evaluate_unmasking(emb_per_attr: dict, prob_per_attr: dict, targets_per_attr
     df_unmask_prob = pd.concat(all_unmask_probs)
     corr_res = data_model_bias_corr(df_data_stats, df_unmask_prob)
 
-    return corr_res, scores_agg, scores_target, df_unmask_prob
+    return corr_res, corr_per_attr, scores_agg, scores_target, df_unmask_prob
 
 
 def create_performance_plot(measures: dict[str, list[float]], 
@@ -408,12 +412,14 @@ def create_performance_plot(measures: dict[str, list[float]],
 def evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config):
     # evaluate unmasking bias on the train (=val) and test set (forward pass to get probabilities then compute bias)
     emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_val, protected_attributes, config['pooling'])
-    corr_res_train, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
+    corr_res_train, corr_per_attr_train, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
     scores['r_train'].append(corr_res_train['r'])
 
     emb_per_attr, prob_per_attr, targets_per_attr = forward_test_data(bert, data_test, protected_attributes, config['pooling'])
-    corr_res_test, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
+    corr_res_test, corr_per_attr_test, unmask_scores_agg, unmask_scores_target, df_unmask = evaluate_unmasking(emb_per_attr, prob_per_attr, targets_per_attr, protected_attributes, template_config, df_data_stats)
     scores['r_test'].append(corr_res_test['r'])
+    for attr, res in corr_per_attr_test.items():
+        scores[attr].append(res['r'])
     
     mlm_result = evaluate_mlm(bert, wikitext_data['val'])
     scores['acc'].append(mlm_result['accuracy'])
@@ -573,6 +579,8 @@ def run(config, min_iter=0, max_iter=-1):
                 
                 # set up result dict and evaluate once before training
                 scores = {score_name: [] for score_name in score_names}
+                for attr in protected_groups.keys():
+                    scores.update({attr: []})
                 scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config)
 
                 # training one epoch at a time and track results
