@@ -182,15 +182,14 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
                 if sample[attr] > -1:  # group id ( > -1 if attribute exists)
                     target_group_occ[sample['target']][protected_groups[attr][sample[attr]]] += 1
 
-        df_data_stats = pd.DataFrame(data=target_group_occ)
+
+        df_data_stats = pd.DataFrame(data=target_group_occ).astype(float)
 
         # normalize per group ( -> p(target | group))
         for group in group_list:
             # overall occurence of this group
             sel = df_data_stats.loc[group, :]
             sel_sum = np.sum(sel)
-            # normalize (cast to float)
-            df_data_stats.loc[group, :] = df_data_stats.loc[group, :].astype(float)
             df_data_stats.loc[group, :] /= sel_sum
 
         df_data_stats.to_csv(stat_path, index_label='groups')
