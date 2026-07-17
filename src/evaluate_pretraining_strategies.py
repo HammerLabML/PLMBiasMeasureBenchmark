@@ -557,7 +557,7 @@ def run(config, min_iter=0, max_iter=-1):
                 y_train = [sample['sentence'] for sample in data_train]
 
                 # reset BERT weights
-                bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
+                bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'], lr=config['learning_rate'])
 
                 if add_wiki_data:
                     # take a sample of the train set (depending on the number of other training samples)
