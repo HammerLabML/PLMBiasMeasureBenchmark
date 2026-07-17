@@ -494,7 +494,7 @@ def run(config, min_iter=0, max_iter=-1):
     wikitext_data = load_wikitext(template_config, version="wikitext-2-raw-v1")
 
     # load pretrained model (need tokenizer to create dataset) and test number of tokens per attribute term
-    bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
+    bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'], lr=float(config['learning_rate']))
 
     # test validity of attribute terms in config (only single-token terms supported in test and validation set)
     vocab_ids = [bert.tokenizer.get_vocab().get(word) for word in group_attr]
@@ -557,7 +557,7 @@ def run(config, min_iter=0, max_iter=-1):
                 y_train = [sample['sentence'] for sample in data_train]
 
                 # reset BERT weights
-                bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'], lr=config['learning_rate'])
+                bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'], lr=float(config['learning_rate']))
 
                 if add_wiki_data:
                     # take a sample of the train set (depending on the number of other training samples)
