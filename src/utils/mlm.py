@@ -24,6 +24,40 @@ class DatasetForTransformer(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.encodings.input_ids)
 
+def apply_random_masking(input_ids: torch.Tensor, mask_token_id: int, vocab_size: int, token_mask: torch.Tensor, mask_prob: float = 0.15) -> torch.Tensor:
+    """
+    Applies random masking strategy to tokenized inputs. Consider a percentage of tokens for masking, of which 80% will be masked,
+    10% replaced with a random token and 10% left as they are.
+
+    Args:
+        input_ids (torch.Tensor): Tokenized inputs.
+        mask_token_id (int): Mask token ID (vocab ID) - model specific.
+        vocab_size (int): Vocabulary size - model specific.
+        token_mask (torch.Tensor): Mask for the tokenized input that specifies which tokens are considered for masking (e.g. to exclude special tokens).
+        mask_prob (float): Amount of tokens considered for masking (80% masked, 10% replaced, 10% left)
+            
+    Returns:
+        torch.Tensor : Tokenized inputs with masks inserted.
+    """
+    # masking strategy:
+    # take 15% of tokens, of these replace 80% by mask, replace 10% with random token, leave 10% unchanged
+    # apply only to tokens specified in token_mask
+    rand_probs = torch.rand_like(input_ids.float())
+    to_mask = token_mask & (rand_probs < 0.15)
+
+    split_rand = torch.rand_like(input_ids.float())
+    is_mask = to_mask & (split_rand < 0.80)
+    input_ids[is_mask] = mask_token_id
+    
+    is_random = to_mask & (split_rand >= 0.80) & (split_rand < 0.90)
+    if is_random.any():
+        rows, cols = torch.where(is_random)
+        random_tokens = torch.randint(0, vocab_size, (len(rows),), device='cpu')
+        input_ids[rows, cols] = random_tokens
+
+    return input_ids
+
+
 
 def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, return_tokens = True, verbose = False):
     """
@@ -54,30 +88,11 @@ def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, ret
             for ids in input_ids.cpu().tolist()
         ], device='cpu')
     
-    # masking strategy:
-    # take 15% of tokens, of these replace 80% by mask, replace 10% with random token, leave 10% unchanged
-    rand_probs = torch.rand_like(input_ids.float())
     candidate_mask = (~special_tokens_mask.bool()) & (attention_mask.bool())
-    to_mask = candidate_mask & (rand_probs < 0.15)
-    
-    labels = input_ids.clone()
-    labels[~to_mask] = -100
-    
-    split_rand = torch.rand_like(input_ids.float())
-    is_mask = to_mask & (split_rand < 0.80)
-    input_ids[is_mask] = bert.tokenizer.mask_token_id
-    
-    is_random = to_mask & (split_rand >= 0.80) & (split_rand < 0.90)
-    if is_random.any():
-        rows, cols = torch.where(is_random)
-        random_tokens = torch.randint(0, len(bert.tokenizer), (len(rows),), device='cpu')
-        input_ids[rows, cols] = random_tokens
-
-    inputs['labels'] = labels
+    inputs['input_ids'] = apply_random_masking(input_ids, bert.tokenizer.mask_token_id, len(bert.tokenizer), candidate_mask, mask_prob=0.15)
 
     if return_tokens:
         return inputs
-    
 
     # We need to decode row by row because padding might affect batch decoding if lengths vary
     # Although we padded to max_length, batch_decode handles it well if skip_special_tokens=False
@@ -86,7 +101,6 @@ def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, ret
     decoded_strings = bert.tokenizer.batch_decode(input_ids.tolist(), skip_special_tokens=False)
     
     for text in decoded_strings:
-
         # remove special tokens except mask
         cleaned_text = text
         tokens_to_remove = [

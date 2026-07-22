@@ -7,6 +7,7 @@ import torch
 from transformers import AutoModelForMaskedLM, PreTrainedTokenizer
 from unmasking_bias import PLLBias, get_token_diffs, get_modified_tokens_from_sent
 from typing import List
+from .mlm import apply_random_masking
 
 
 def create_bias_distribution(n_groups: int, target_words: list, minP: float = 0.0, maxP: float = 1.0):
@@ -60,53 +61,6 @@ def create_bias_distribution(n_groups: int, target_words: list, minP: float = 0.
         probs_by_target[target].update({i: p})
 
     return probs_by_target
-
-
-def random_masking(token_ids: torch.Tensor, mask_token_id, ignore_token_ids=None, token_id_subset=None,
-                   mask_prob: float = 0.15) -> torch.Tensor:
-    """
-    Applies standard BERT-style random masking to a sequence of token IDs.
-    
-    Masks a subset of tokens based on `mask_prob`, excluding special tokens defined in `ignore_token_ids`
-    and optionally restricted to indices in `token_id_subset`.
-
-    Args:
-        token_ids (torch.Tensor): A 2D tensor of shape (1, seq_len) containing token IDs.
-        mask_token_id (int): The token ID representing the [MASK] token.
-        ignore_token_ids (list, optional): A list of token IDs that should NOT be masked (e.g., CLS, SEP, PAD).
-                                           If None, no tokens are ignored based on ID. Defaults to None.
-        token_id_subset (list, optional): A list of specific indices (column positions) to consider for masking.
-                                          If None, all positions are considered. Defaults to None.
-        mask_prob (float, optional): The probability (0.0 to 1.0) of masking a token within the eligible subset.
-                                     Defaults to 0.15.
-
-    Returns:
-        torch.Tensor: A modified copy of `token_ids` where selected tokens have been replaced with `mask_token_id`.
-
-    Raises:
-        AssertionError: If `token_id_subset` is provided but is not a list, or if no tokens are available to mask.
-    """
-    if token_id_subset is None:
-        token_id_subset = list(range(token_ids.size()[1]))
-    else:
-        assert type(token_id_subset) == list, "expected a list of token ids or None"
-
-    # don't replace any special tokens
-    final_token_subset = []
-    if ignore_token_ids is not None:
-        for idx in token_id_subset:
-            if int(token_ids[0][idx]) not in ignore_token_ids:
-                final_token_subset.append(idx)
-    else:
-        final_token_subset = token_id_subset
-
-    n = len(final_token_subset)
-    np.random.shuffle(final_token_subset)
-    to_mask_ids = final_token_subset[:math.ceil(mask_prob * n)]
-
-    assert len(to_mask_ids) > 0, "need to replace at least 1 token with a [MASK]"
-
-    return mask_by_ids(token_ids, to_mask_ids, mask_token_id)
 
 
 def mask_by_ids(token_ids: torch.Tensor, to_mask_ids: list, mask_token_id) -> torch.Tensor:
@@ -366,6 +320,16 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
             entry['target_token_ids'] = mod_target
             entry['sentence'] = sentence  # label for unmasking (y)
 
+            special_tokens_mask = token_ids.get('special_tokens_mask', None)
+            if special_tokens_mask is None:
+                special_tokens_mask = torch.tensor([
+                    tokenizer.get_special_tokens_mask(ids, already_has_special_tokens=True) 
+                    for ids in token_ids['input_ids'].cpu().tolist()
+                ], device='cpu')
+
+            attention_mask = token_ids['attention_mask']
+            candidate_mask = (~special_tokens_mask.bool()) & (attention_mask.bool())
+
             # Option1: mask all attribute tokens
             if masking_strategy == 'attribute':
                 masked_token_ids = mask_by_ids(token_ids['input_ids'], to_mask_ids=mod_attr,
@@ -373,9 +337,13 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
 
             # Option2: random masking on non-attribute tokens
             elif masking_strategy == 'non_attribute':
-                masked_token_ids = random_masking(token_ids['input_ids'], tokenizer.mask_token_id,
-                                                  ignore_token_ids=special_tokens_ids, token_id_subset=unmod_attr,
-                                                  mask_prob=mask_prob)
+                filtered_mask = torch.zeros_like(candidate_mask)
+                flat_valid_ids = torch.tensor(unmod_attr, device='cpu')
+                filtered_mask.flatten()[flat_valid_ids] = 1
+                #filtered_mask[unmod_attr] = 1
+                candidate_mask = (candidate_mask) & (filtered_mask)
+                masked_token_ids = apply_random_masking(token_ids['input_ids'], tokenizer.mask_token_id, len(tokenizer), 
+                                                        token_mask=candidate_mask, mask_prob=mask_prob)
 
             # Option3: mask all target tokens
             elif masking_strategy == 'target':
@@ -383,9 +351,8 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                                                mask_token_id=tokenizer.mask_token_id)
             # Option4: random masking
             else:  # masking_strategy == 'random'
-                masked_token_ids = random_masking(token_ids['input_ids'], tokenizer.mask_token_id,
-                                                  ignore_token_ids=special_tokens_ids, token_id_subset=None,
-                                                  mask_prob=mask_prob)
+                masked_token_ids = apply_random_masking(token_ids['input_ids'], tokenizer.mask_token_id, len(tokenizer), 
+                                                        token_mask=candidate_mask, mask_prob=mask_prob)
 
             masked_sentence = tokenizer.decode(masked_token_ids[0][1:masked_token_ids.size()[1]-1])
             entry['masked_sentence'] = masked_sentence  # masked sample (X)

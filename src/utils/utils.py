@@ -7,8 +7,8 @@ logging.basicConfig(level=logging.INFO) # filename='myapp.log',
 
 
 valid_objectives = ['MLM', 'MLM_lazy', 'NSP']
-valid_masking_strategies = ['random', 'attribute', 'non_attribute', 'target']
 valid_eval_strategies = ['non_attribute', 'target']
+valid_masking_strategies = ['random', 'attribute', 'non_attribute', 'target']
 
 def check_config(config):
     """
