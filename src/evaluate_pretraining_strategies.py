@@ -519,6 +519,7 @@ def run(config, min_iter=0, max_iter=-1):
 
     # check for previous results
     score_names = ['r_test', 'r_train', 'acc', 'ppl']
+    score_names_attr = protected_attributes+['acc', 'ppl']
     results_file = config['results_dir']+'/results.csv'
     all_results = []
     if os.path.isfile(results_file):
@@ -526,7 +527,7 @@ def run(config, min_iter=0, max_iter=-1):
         print("got previous results:")
         print(df)
 
-	# result lists are read as str, convert to list[float]
+	    # result lists are read as str, convert to list[float]
         for score in score_names:
             df[score] = df[score].apply(str_to_list_float)
         # convert to dict
@@ -639,19 +640,9 @@ def run(config, min_iter=0, max_iter=-1):
                     scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config)
                 print(scores)
 
-                # after last epoch check group priors
+                # after last epoch compute group priors
                 _, probs_val, _ = forward_test_data(bert, data_save['val_prior'], protected_attributes, config['pooling'])
                 _, probs_test, _ = forward_test_data(bert, data_save['val_prior'], protected_attributes, config['pooling'])
-                print("group priors:")
-                for attr in protected_attributes:
-                    print(attr)
-                    print("val: ", np.mean(probs_val[attr], axis=0))
-                    print("test: ", np.mean(probs_test[attr], axis=0))
-
-                # report group frequency in the data for comparison
-                df_data_stats['freq'] = df_data_stats.sum(axis=1)
-                print(df_data_stats.loc[:,'freq'])
-
                 
                 # plot and collect results
                 title_str = f"Performance: minP={minP}, maxP={maxP}, iter={it}"
@@ -664,7 +655,30 @@ def run(config, min_iter=0, max_iter=-1):
                     # Using object type allows us to convert back to list easily later
                     row_data[metric_name] = values
                 row_data['best r'] = np.max(scores['r_test'])
+                for attr in protected_attributes:
+                    row_data[attr+' final r'] = scores[attr][-1]
                 row_data['best epoch'] = np.argmax(scores['r_test'])  # ordered by epochs anyway and index 0 = eval before training
+
+                # add group priors and frequencies to results
+                print("group priors:")
+                priors_test = []
+                priors_val = []
+                for attr in protected_attributes:
+                    print(attr)
+                    print("val: ", np.mean(probs_val[attr], axis=0))
+                    print("test: ", np.mean(probs_test[attr], axis=0))
+                    priors_val.append(np.mean(probs_val[attr], axis=0))
+                    priors_test.append(np.mean(probs_test[attr], axis=0))
+                print(priors_val)
+                print(np.vstack(priors_val))
+                print(np.hstack(prors_val))
+
+                # report group frequency in the data for comparison
+                df_data_stats['freq'] = df_data_stats.sum(axis=1)
+                print(df_data_stats.loc[:,'freq'])
+                row_data['frequencies'] = df_data_stats.loc[:,'freq'].to_numpy()
+                row_data['priors val'] = np.vstack(priors_val)
+                row_data['priors test'] = np.vstack(priors_test)
 
                 print(row_data)
                 
@@ -683,15 +697,17 @@ def run(config, min_iter=0, max_iter=-1):
     title_str = f"Performance and Bias Correlation (lr={config['learning_rate']}, wiki={config['add_wiki_data']}, batch_size={config['batch_size']})"
     agg_plot_filename = config['results_dir']+'/plot_agg'
 
-    # get mean + std of all scores over minP, maxP and iter
-    scores_dict = {}
-    errors_dict = {}
-    for score_name in score_names:
-        scores = np.stack(df[score_name])
-        scores_dict[score_name] = np.mean(scores, axis=0).tolist()
-        errors_dict[score_name] = np.std(scores, axis=0).tolist()
-        
-    create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
+    # get mean + std of all scores over minP, maxP and iter (once with R test/val and once with R per attribute)
+    for (score_name_sel, filename) in [(score_names, agg_plot_filename), (score_names_attr, agg_plot_filename+'_attr')]:
+        scores_dict = {}
+        errors_dict = {}
+        for score_name in score_name_sel:
+            scores = np.stack(df[score_name])
+            scores_dict[score_name] = np.mean(scores, axis=0).tolist()
+            errors_dict[score_name] = np.std(scores, axis=0).tolist()
+
+        create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
+
     # TODO iterate through all subdirs, open data stat csv, caculate the group frequency over all targets, report mean + std (plot? / compare to model prior?)
     
     print("done")
