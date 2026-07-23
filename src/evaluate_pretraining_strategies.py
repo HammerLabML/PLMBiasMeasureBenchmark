@@ -366,27 +366,63 @@ def create_performance_plot(measures: dict[str, list[float]],
         color_idx += 1
 
     # --- Configure Layout with Dual Axes ---
+    font_sizes = {
+        "title": 28,
+        "axis": 24,
+        "legend": 24,
+        "tick": 18  # Optional: tick labels
+    }
+
     layout_updates = {
-        "title": title,
-        "xaxis_title": "Epoch",
-        "yaxis_title": "Score",
+        "title": {
+            "text": title, 
+            "font": {"size": font_sizes["title"], "family": "Arial, sans-serif"}
+        },
+        "xaxis": {
+            "title": {
+                "text": "Epoch", 
+                "font": {"size": font_sizes["axis"]}
+                },
+            "tickfont": {"size": font_sizes["tick"]}
+        },
+        "yaxis": {
+            "title": {
+                "text": "Score", 
+                "font": {"size": font_sizes["axis"]}
+                },
+            "tickfont": {"size": font_sizes["tick"]}
+        },
         "hovermode": "x unified",
         "template": "plotly_white",
         "width": width,
         "height": height,
-        "legend": dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        "legend": {
+            "orientation": "h",
+            "yanchor": "bottom",
+            "y": 1.02,
+            "xanchor": "right",
+            "x": 1,
+            "font": {"size": font_sizes["legend"], "family": "Arial, sans-serif"},
+            #"bgcolor": "rgba(255,255,255,0.7)",  # Optional: semi-transparent background
+            #"bordercolor": "rgba(0,0,0,0.1)",    # Optional: light border
+            #"borderwidth": 1                     # Optional: border thickness
+        }
     }
 
     if sec_traces_added:
         # Add secondary axis configuration
-        layout_updates["yaxis"] = dict(title="MLM Accuracy (ACC) and Bias Correlation (R)")
-        layout_updates["yaxis2"] = dict(
-            title="Perplexity (PPL)",
-            overlaying="y",     # Overlay on the same plot area
-            side="right",       # Position on the right
-            showgrid=False,     # Optional: cleaner look
-            zeroline=False
-        )
+        layout_updates["yaxis"]["title"]["text"] = "MLM Accuracy (ACC) / Bias Correlation (R)"
+        layout_updates["yaxis2"] = {
+            "title": {
+                "text": "Perplexity (PPL)", 
+                "font": {"size": font_sizes["axis"]}
+                },
+            "tickfont": {"size": font_sizes["tick"]},
+            "overlaying": "y",
+            "side": "right",
+            "showgrid": False,
+            "zeroline": False
+        }
         
         # Adjust ranges to ensure visibility if needed (optional, Plotly auto-scales well)
         # If you want to force specific limits, uncomment below:
