@@ -182,14 +182,26 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
 
 
         df_data_stats = pd.DataFrame(data=target_group_occ).astype(float)
+        df_data_stats.to_csv(stat_path.replace('.csv', '_raw.csv'), index_label='groups')
 
-        # normalize per group ( -> p(target | group))
+        print(df_data_stats)
+
+        # normalize per target and attribute ( -> p(group | target, attr))
+        for attr in protected_attributes:
+            cur_groups = template_config[attr]['GROUPS'][1:]
+            for target in target_words:
+                sel = df_data_stats.loc[cur_groups, target]
+                sel_sum = np.sum(sel)
+                df_data_stats.loc[cur_groups, target] /= sel_sum
+        """
         for group in group_list:
             # overall occurence of this group
             sel = df_data_stats.loc[group, :]
             sel_sum = np.sum(sel)
             df_data_stats.loc[group, :] /= sel_sum
+        """
 
+        
         df_data_stats.to_csv(stat_path, index_label='groups')
     else:
         print("load training data from "+data_path)

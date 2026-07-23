@@ -342,7 +342,7 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                 filtered_mask.flatten()[flat_valid_ids] = 1
                 #filtered_mask[unmod_attr] = 1
                 candidate_mask = (candidate_mask) & (filtered_mask)
-                masked_token_ids = apply_random_masking(token_ids['input_ids'], tokenizer.mask_token_id, len(tokenizer), 
+                masked_token_ids, _ = apply_random_masking(token_ids['input_ids'], tokenizer.mask_token_id, len(tokenizer), 
                                                         token_mask=candidate_mask, mask_prob=mask_prob)
 
             # Option3: mask all target tokens
@@ -351,7 +351,7 @@ def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: 
                                                mask_token_id=tokenizer.mask_token_id)
             # Option4: random masking
             else:  # masking_strategy == 'random'
-                masked_token_ids = apply_random_masking(token_ids['input_ids'], tokenizer.mask_token_id, len(tokenizer), 
+                masked_token_ids, _ = apply_random_masking(token_ids['input_ids'], tokenizer.mask_token_id, len(tokenizer), 
                                                         token_mask=candidate_mask, mask_prob=mask_prob)
 
             masked_sentence = tokenizer.decode(masked_token_ids[0][1:masked_token_ids.size()[1]-1])

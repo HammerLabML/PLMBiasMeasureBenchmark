@@ -44,6 +44,8 @@ def apply_random_masking(input_ids: torch.Tensor, mask_token_id: int, vocab_size
     # apply only to tokens specified in token_mask
     rand_probs = torch.rand_like(input_ids.float())
     to_mask = token_mask & (rand_probs < 0.15)
+    labels = input_ids.clone()
+    labels[~to_mask] = -100
 
     split_rand = torch.rand_like(input_ids.float())
     is_mask = to_mask & (split_rand < 0.80)
@@ -55,7 +57,7 @@ def apply_random_masking(input_ids: torch.Tensor, mask_token_id: int, vocab_size
         random_tokens = torch.randint(0, vocab_size, (len(rows),), device='cpu')
         input_ids[rows, cols] = random_tokens
 
-    return input_ids
+    return input_ids, labels
 
 
 
@@ -89,7 +91,7 @@ def mask_texts(bert: BertHuggingfaceMLM, texts: list[str], max_length = 512, ret
         ], device='cpu')
     
     candidate_mask = (~special_tokens_mask.bool()) & (attention_mask.bool())
-    inputs['input_ids'] = apply_random_masking(input_ids, bert.tokenizer.mask_token_id, len(bert.tokenizer), candidate_mask, mask_prob=0.15)
+    inputs['input_ids'], inputs['labels'] = apply_random_masking(input_ids, bert.tokenizer.mask_token_id, len(bert.tokenizer), candidate_mask, mask_prob=0.15)
 
     if return_tokens:
         return inputs
