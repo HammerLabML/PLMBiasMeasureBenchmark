@@ -163,9 +163,9 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
         print("create dataset from templates with minP and maxP parameters and save it...")
         data_train = templates_to_train_samples(tokenizer, template_config, probs_by_attr,
                                                 target_words, config, template_key='templates_train')
-        data_val = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_val')
-        data_test = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_test')
-        data_save = {'train': data_train, 'val': data_val, 'test': data_test, 'epochs': config['epochs']}
+        data_val, data_val_prior = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_val')
+        data_test, data_test_prior = templates_to_eval_samples(tokenizer, template_config, target_words, template_key='templates_test')
+        data_save = {'train': data_train, 'val': data_val, 'test': data_test, 'epochs': config['epochs'], 'val_prior': data_val_prior, 'test_prior': data_test_prior}
 
         with open(data_path, "wb") as handler:
             pickle.dump(data_save, handler)
@@ -201,7 +201,7 @@ def create_dataset(data_path: str, stat_path: str, tokenizer, template_config: d
             df_data_stats.loc[group, :] /= sel_sum
         """
 
-        
+
         df_data_stats.to_csv(stat_path, index_label='groups')
     else:
         print("load training data from "+data_path)
@@ -598,6 +598,7 @@ def run(config, min_iter=0, max_iter=-1):
                 # create or load the dataset
                 data_save, df_data_stats = create_dataset(data_path, stat_path, bert.tokenizer, template_config, probs_by_attr, target_words, config, 
                                                          protected_attributes, protected_groups)
+
                 data_test = data_save['test']
                 data_train = data_save['train']
                 data_val = data_save['val'] # training templates processed for evaluation
@@ -637,6 +638,20 @@ def run(config, min_iter=0, max_iter=-1):
                     losses = bert.retrain(X_train, y_train, epochs=1)
                     scores = evaluate(bert, scores, data_val, data_test, wikitext_data, protected_attributes, template_config, df_data_stats, config)
                 print(scores)
+
+                # after last epoch check group priors
+                _, probs_val, _ = forward_test_data(bert, data_save['val_prior'], protected_attributes, config['pooling'])
+                _, probs_test, _ = forward_test_data(bert, data_save['val_prior'], protected_attributes, config['pooling'])
+                print("group priors:")
+                for attr in protected_attributes:
+                    print(attr)
+                    print("val: ", np.mean(probs_val[attr], axis=0))
+                    print("test: ", np.mean(probs_test[attr], axis=0))
+
+                # report group frequency in the data for comparison
+                df_data_stats['freq'] = df_data_stats.sum(axis=1)
+                print(df_data_stats.loc[:,'freq'])
+
                 
                 # plot and collect results
                 title_str = f"Performance: minP={minP}, maxP={maxP}, iter={it}"
@@ -677,6 +692,7 @@ def run(config, min_iter=0, max_iter=-1):
         errors_dict[score_name] = np.std(scores, axis=0).tolist()
         
     create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
+    # TODO iterate through all subdirs, open data stat csv, caculate the group frequency over all targets, report mean + std (plot? / compare to model prior?)
     
     print("done")
 

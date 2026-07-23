@@ -162,6 +162,8 @@ def attr_in_template(template, protected_attr, template_config):
 
 def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: dict, target_words: list, template_key: str):
     data = []
+    data_prior = [] # with masked out occupations for group prior
+    mask_str = '[MASK]'
 
     # these special tokens should be ignored
     special_tokens_ids = [tokenizer.cls_token_id, tokenizer.eos_token_id, tokenizer.bos_token,
@@ -169,7 +171,7 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                           tokenizer.mask_token_id] + tokenizer.additional_special_tokens_ids
 
     for temp in template_config[template_key]:
-        for target in target_words:
+        for target in target_words+[mask_str]:
             sentence_base = temp.replace(template_config['target'], target)
             sentence_attr_base_no_target = temp
 
@@ -249,9 +251,13 @@ def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: d
                 entry['target_token_ids'] = tuple(target_ids)
 
                 assert entry['sentences'] is not None, "could not generate test sentences for template: "+temp
-                data.append(entry)
 
-    return data
+                if target == mask_str:
+                    data_prior.append(entry)
+                else:
+                    data.append(entry)
+
+    return data, data_prior
 
 
 def templates_to_train_samples(tokenizer: PreTrainedTokenizer, template_config: dict, probs_by_attr: dict,
