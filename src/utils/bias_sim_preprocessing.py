@@ -163,7 +163,7 @@ def attr_in_template(template, protected_attr, template_config):
 def templates_to_eval_samples(tokenizer: PreTrainedTokenizer, template_config: dict, target_words: list, template_key: str):
     data = []
     data_prior = [] # with masked out occupations for group prior
-    mask_str = '[MASK]'
+    mask_str = 'person' # using mask token leads to problems so just neutral term person instead
 
     # these special tokens should be ignored
     special_tokens_ids = [tokenizer.cls_token_id, tokenizer.eos_token_id, tokenizer.bos_token,
