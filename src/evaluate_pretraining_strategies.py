@@ -670,15 +670,15 @@ def run(config, min_iter=0, max_iter=-1):
                     priors_val.append(np.mean(probs_val[attr], axis=0))
                     priors_test.append(np.mean(probs_test[attr], axis=0))
                 print(priors_val)
-                print(np.vstack(priors_val))
-                print(np.hstack(prors_val))
+#                print(np.vstack(priors_val))
+                print(np.hstack(priors_val))
 
                 # report group frequency in the data for comparison
                 df_data_stats['freq'] = df_data_stats.sum(axis=1)
                 print(df_data_stats.loc[:,'freq'])
                 row_data['frequencies'] = df_data_stats.loc[:,'freq'].to_numpy()
-                row_data['priors val'] = np.vstack(priors_val)
-                row_data['priors test'] = np.vstack(priors_test)
+                row_data['priors val'] = np.hstack(priors_val)
+                row_data['priors test'] = np.hstack(priors_test)
 
                 print(row_data)
                 
@@ -708,8 +708,6 @@ def run(config, min_iter=0, max_iter=-1):
 
         create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
 
-    # TODO iterate through all subdirs, open data stat csv, caculate the group frequency over all targets, report mean + std (plot? / compare to model prior?)
-    
     print("done")
 
 
