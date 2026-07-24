@@ -12,19 +12,48 @@ styles:
 - heritage_family
 - relatives
 OCCUPATION:
+- accountant
 - architect
+- astronaut
 - attorney
+- author
+- banker
+- bartender
+- caretaker
+- carpenter
+- comedian
 - dentist
+- designer
+- doctor
+- detective
+- electrician
+- engineer
+- farmer
 - filmmaker
+- historian
+- hairstylist
+- janitor
 - journalist
+- librarian
 - model
+- manager
+- musician
 - nurse
+- professor
 - photographer
 - psychologist
 - physician
+- politician
+- plumber
+- rapper
 - software engineer
 - surgeon
+- salesperson
+- secretary
+- therapist
+- trucker
 - teacher
+- veterinarian
 ETHNICITY:
   GROUPS:
   - neutral
