@@ -73,6 +73,12 @@ def create_templates(template_collection_file: str, template_config_file: str):
 
     df = pd.read_csv(template_collection_file, sep=';')
 
+    # filter required styles
+    if 'styles' in template_config.keys():
+        print("only use templates of the following styles: ", template_config['styles'])
+        print(len(df))
+        df = df[df['style'].isin(template_config['styles'])].reset_index(drop=True)
+        print(len(df))
 
     # get templates, attribute and target keys
     templates = list(df['template'])
@@ -80,16 +86,21 @@ def create_templates(template_collection_file: str, template_config_file: str):
     keys_by_attr = {attr: template_config[attr]['KEYS'] for attr in attributes}
     target = template_config['target']
 
-
     # assert every template has a target key
     for template in templates:
         assert target in template, "found template without target key: "+template
 
+    count_per_key = {key: 0 for attr in attributes for key in keys_by_attr[attr]}
     for i, template in enumerate(templates):
         for attr in attributes:
             df.loc[i, attr] = 0
             for key in keys_by_attr[attr]:
                 df.loc[i, attr] += template.count(key)
+                count_per_key[key] += template.count(key)
+    print("occurences per key:")
+    print(count_per_key)
+
+    df.to_csv(template_collection_file.replace('.csv', '_.csv'), index=False, sep=';')
 
     #print(df)
     condition_test = df[attributes] <= 1
@@ -119,6 +130,7 @@ def create_templates(template_collection_file: str, template_config_file: str):
 
     with open(template_config_file, 'w') as f:
         yaml.dump(template_config, f, default_flow_style=False, sort_keys=False)
+
 
 
 
