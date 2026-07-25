@@ -611,7 +611,7 @@ def run(config, min_iter=0, max_iter=-1):
 
                 if add_wiki_data:
                     # take a sample of the train set (depending on the number of other training samples)
-                    n_wiki_samples = len(X_train)
+                    n_wiki_samples = min(len(X_train), len(wikitext_data['train']))
                     if DEBUG:
                         n_wiki_samples = 20
                     wiki_train_sample = random.sample(wikitext_data['train'], n_wiki_samples)
