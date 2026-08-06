@@ -13,7 +13,9 @@ from tqdm import tqdm
 
 import torch
 #from transformers import pipeline
-from utils import create_bias_distribution, check_config, check_attribute_occurence, create_masked_dataset, templates_to_train_samples, templates_to_eval_samples
+from utils import (create_bias_distribution, check_config, check_attribute_occurence, create_masked_dataset, templates_to_train_samples, templates_to_eval_samples, 
+                   evaluate_mlm, forward_mlm_for_bias_eval)
+                   
 from embedding import BertHuggingfaceMLM #, BertHuggingface
 from geometrical_bias import SAME, WEAT, GeneralizedWEAT, DirectBias, RIPA, MAC
 from lipstick_bias import BiasGroupTest, NeighborTest, ClusterTest, ClassificationTest
@@ -21,92 +23,6 @@ from unmasking_bias import PLLBias
 
 
 DEBUG = False
-
-class DatasetForTransformer(torch.utils.data.Dataset):
-
-    def __init__(self, encodings):
-        self.encodings = encodings
-
-    def __getitem__(self, idx):
-        item = {key: val[idx].clone().detach() for key, val in self.encodings.items()}
-        item['index'] = idx
-        return item
-
-    def __len__(self):
-        return len(self.encodings.input_ids)
-
-
-# Pooling is 'mask' or 'mean'
-def forward_mlm(bert, texts: list[str], attr_terms: list[str], pooling='mask', verbose=False):
-    emb_dim = bert.model.config.hidden_size
-    max_length = 512
-    
-    vocab_ids = [bert.tokenizer.get_vocab().get(word) for word in attr_terms]
-    inputs = bert.tokenizer(texts, return_tensors='pt', max_length=max_length, truncation=True,
-                            padding='max_length')
-    dataset = DatasetForTransformer(inputs)
-    loader = torch.utils.data.DataLoader(dataset, batch_size=bert.batch_size, shuffle=False)
-
-    output_emb = np.zeros((len(texts), emb_dim))
-    output_prob = np.zeros((len(texts), len(vocab_ids)))
-    for batch in tqdm(loader, leave=True):
-        if torch.cuda.is_available():
-            for key in batch.keys():
-                if key != 'index':
-                    batch[key] = batch[key].to('cuda')
-
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
-        indices = batch['index']
-
-        out = bert.model(input_ids, attention_mask=attention_mask)
-        logits = out.logits # shape: batch_size, tokens, vocab size
-        token_emb = out.hidden_states[-1] # shape: batch size, tokens, emb dim
-
-        # mask with [mask] token positions and assert exactly one mask token per sample
-        mask = (input_ids == bert.tokenizer.mask_token_id)
-        row_counts = mask.sum(dim=1)
-        
-        if not torch.all(row_counts == 1):
-            for index in indices:
-                print(texts[index])
-        assert torch.all(row_counts == 1)
-        
-        # get mask token indices
-        masked_indices = torch.nonzero(mask, as_tuple=False)
-        batch_ids = masked_indices[:,0]
-        token_ids = masked_indices[:,1]
-
-        # get mask token probabilities for selected targets
-        masked_logits = logits[batch_ids, token_ids, :] 
-        probs = masked_logits.softmax(dim=-1)
-        target_probs = probs[:, vocab_ids]
-        
-        if pooling == 'mask':
-            # get mask token embeddings
-            pooled_emb = token_emb[batch_ids, token_ids, :]
-        else:
-            # get mean pooled embedding
-            attention_repeat = torch.repeat_interleave(attention_mask, token_emb.size()[2]).reshape(token_emb.size())
-            pooled_emb = torch.sum(token_emb * attention_repeat, dim=1) / torch.sum(attention_repeat, dim=1)
-
-            attention_repeat = attention_repeat.to('cpu')
-            del attention_repeat
-
-        output_emb[indices.numpy()] = pooled_emb.to('cpu').detach().numpy()
-        output_prob[indices.numpy()] = target_probs.to('cpu').detach().numpy()
-
-        input_ids = input_ids.to('cpu')
-        attention_mask = attention_mask.to('cpu')
-        logits = logits.to('cpu')
-        token_emb = token_emb.to('cpu')
-
-        del input_ids
-        del attention_mask
-        del logits
-        del token_emb
-        torch.cuda.empty_cache()
-    return output_emb, output_prob
 
 
 def create_defining_embeddings_from_templates(bert, template_config):
@@ -571,7 +487,6 @@ def run(config, min_iter=0, max_iter=-1):
                 # load pretrained model (need tokenizer to create dataset)
                 bert = BertHuggingfaceMLM(model_name=config['pretrained_model'], batch_size=config['batch_size'])
 
-
                 # create or load the dataset
                 data_save, df_data_stats = create_dataset(data_path, stat_path, bert.tokenizer, template_config, probs_by_attr, target_words, config, 
                                                          protected_attributes, protected_groups)
@@ -585,9 +500,9 @@ def run(config, min_iter=0, max_iter=-1):
                 training_iterations_left = config['max_retries']
                 r_value = 0
                 last_r_value = -1
-                if 'baseline_r2' in data_save.keys() and os.path.isdir(model_path):
+                if 'baseline_r' in data_save.keys() and os.path.isdir(model_path):
                     print("found checkpoint for this model, check if further training is necessary")
-                    r_value = data_save['baseline_r2']
+                    r_value = data_save['baseline_r']
                     last_r_value = r_value
                     training_iterations_left = data_save['iter_left']
                     if training_iterations_left > 0 and r_value < config['target_r_value']:
@@ -623,7 +538,7 @@ def run(config, min_iter=0, max_iter=-1):
                         data_save['emb_per_attr'] = emb_per_attr
                         data_save['prob_per_attr'] = prob_per_attr
                         data_save['targets_per_attr'] = targets_per_attr
-                        data_save['baseline_r2'] = r_value
+                        data_save['baseline_r'] = r_value
                         data_save['iter_left'] = training_iterations_left-it
                         data_save['corr_res'] = corr_res
                         data_save['unmask_score_agg'] = unmask_scores_agg
