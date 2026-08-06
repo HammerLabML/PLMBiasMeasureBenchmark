@@ -487,6 +487,7 @@ def str_to_list_float(s):
     return s
 
 def run(config, min_iter=0, max_iter=-1):
+    random.seed(config['random_seed'])
 
     print("load templates and protected attributes...")
     with open(config['template_file'], 'r') as f:
