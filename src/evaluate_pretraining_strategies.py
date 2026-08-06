@@ -520,6 +520,7 @@ def run(config, min_iter=0, max_iter=-1):
     # check for previous results
     score_names = ['r_test', 'r_train', 'acc', 'ppl']
     score_names_attr = protected_attributes+['acc', 'ppl']
+    score_names_prior = ['frequencies', 'priors val', 'priors test']
     results_file = config['results_dir']+'/results.csv'
     all_results = []
     if os.path.isfile(results_file):
@@ -528,7 +529,7 @@ def run(config, min_iter=0, max_iter=-1):
         print(df)
 
 	    # result lists are read as str, convert to list[float]
-        for score in score_names:
+        for score in score_names+score_names_attr+score_names_prior:
             df[score] = df[score].apply(str_to_list_float)
         # convert to dict
         all_results = df.to_dict(orient='records')
@@ -611,7 +612,7 @@ def run(config, min_iter=0, max_iter=-1):
 
                 if add_wiki_data:
                     # take a sample of the train set (depending on the number of other training samples)
-                    n_wiki_samples = min(len(X_train), len(wikitext_data['train']))
+                    n_wiki_samples = min(int(config['wiki_ratio']*len(X_train)), len(wikitext_data['train']))
                     if DEBUG:
                         n_wiki_samples = 20
                     wiki_train_sample = random.sample(wikitext_data['train'], n_wiki_samples)

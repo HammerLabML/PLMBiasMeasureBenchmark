@@ -49,6 +49,12 @@ def check_config(config):
         config['epochs'] = 5
 
     # these cannot be replaced by default values
+    if 'add_wiki_data' not in config.keys():
+        logger.info("'add_wiki_data' entry missing in config'")
+        exit(1)
+    if config['add_wiki_data'] and 'wiki_ratio' not in config.keys():
+        logger.info("ratio of wiki data to bias dataset not specified, add 'wiki_ratio': <float>")
+        exit(1)
     if 'template_file' not in config.keys():
         logger.error("template_file missing from config")
         exit(1)
