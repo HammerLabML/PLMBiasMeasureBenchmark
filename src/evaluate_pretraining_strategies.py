@@ -482,8 +482,10 @@ def str_to_list_float(s):
             lst = ast.literal_eval(s)
             return [float(x) for x in lst]
         except (ValueError, SyntaxError):
-            print(f"Warning: Could not aprse '{s}'")
-            return []
+            print(f"Warning: Could not parse '{s}'")
+            s_ = s.replace('[','').replace(']','')
+            return [float(x) for x in s_.split(' ') if x != '']
+#            return []
     return s
 
 def run(config, min_iter=0, max_iter=-1):
@@ -644,7 +646,7 @@ def run(config, min_iter=0, max_iter=-1):
 
                 # after last epoch compute group priors
                 _, probs_val, _ = forward_test_data(bert, data_save['val_prior'], protected_attributes, config['pooling'])
-                _, probs_test, _ = forward_test_data(bert, data_save['val_prior'], protected_attributes, config['pooling'])
+                _, probs_test, _ = forward_test_data(bert, data_save['test_prior'], protected_attributes, config['pooling'])
                 
                 # plot and collect results
                 title_str = f"Performance: minP={minP}, maxP={maxP}, iter={it}"
@@ -671,9 +673,6 @@ def run(config, min_iter=0, max_iter=-1):
                     print("test: ", np.mean(probs_test[attr], axis=0))
                     priors_val.append(np.mean(probs_val[attr], axis=0))
                     priors_test.append(np.mean(probs_test[attr], axis=0))
-                print(priors_val)
-#                print(np.vstack(priors_val))
-                print(np.hstack(priors_val))
 
                 # report group frequency in the data for comparison
                 df_data_stats['freq'] = df_data_stats.sum(axis=1)
@@ -708,7 +707,33 @@ def run(config, min_iter=0, max_iter=-1):
             scores_dict[score_name] = np.mean(scores, axis=0).tolist()
             errors_dict[score_name] = np.std(scores, axis=0).tolist()
 
-        create_performance_plot(scores_dict, errors_dict, title=title_str, filename=agg_plot_filename)
+        create_performance_plot(scores_dict, errors_dict, title=title_str, filename=filename)
+
+    r_val = []
+    r_test = []
+    for i in range(len(df)):
+        freq = list(df.loc[i, 'frequencies'])
+        priors_val = list(df.loc[i, 'priors val'])
+        priors_test = list(df.loc[i, 'priors test'])
+
+        res_val = scipy.stats.pearsonr(freq, priors_val)
+        res_test = scipy.stats.pearsonr(freq, priors_test)
+        print("val: ", res_val)
+        print("test: ", res_test)
+        r_val.append(res_val.statistic)
+        r_test.append(res_test.statistic)
+
+    print(f"val: {np.mean(r_val):0.3f} +/- {np.std(r_val):0.3f}")
+    print(f"test: {np.mean(r_test):0.3f} +/- {np.std(r_test):0.3f}")
+
+    freq = np.mean(np.stack(df['frequencies'], axis=0))
+    priorv = np.mean(np.stack(df['priors val'], axis=0))
+    priort = np.mean(np.stack(df['priors test'], axis=0))
+    print(freq.shape)
+
+    print(freq)
+    print(priorv)
+    print(priort)
 
     print("done")
 
