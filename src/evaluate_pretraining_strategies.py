@@ -726,10 +726,9 @@ def run(config, min_iter=0, max_iter=-1):
     print(f"val: {np.mean(r_val):0.3f} +/- {np.std(r_val):0.3f}")
     print(f"test: {np.mean(r_test):0.3f} +/- {np.std(r_test):0.3f}")
 
-    freq = np.mean(np.stack(df['frequencies'], axis=0))
-    priorv = np.mean(np.stack(df['priors val'], axis=0))
-    priort = np.mean(np.stack(df['priors test'], axis=0))
-    print(freq.shape)
+    freq = np.mean(np.stack(df['frequencies']), axis=0)
+    priorv = np.mean(np.stack(df['priors val']), axis=0)
+    priort = np.mean(np.stack(df['priors test']), axis=0)
 
     print(freq)
     print(priorv)
