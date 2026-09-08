@@ -318,8 +318,8 @@ def create_performance_plot(measures: dict[str, list[float]],
                 y=scores, 
                 mode='lines+markers', 
                 name=score_name,
-                line=dict(color=sec_color, width=2, dash='dash'), # Dashed line to distinguish
-                yaxis="y2", # Link to secondary axis
+                line=dict(color=sec_color, width=2, dash='dash'),
+                yaxis="y2", # secondary axis
                 hovertemplate=f"<b>{score_name}</b>: %{{y:.2f}}<extra></extra>"
             ))
             if errors is not None:
@@ -334,11 +334,11 @@ def create_performance_plot(measures: dict[str, list[float]],
                     y=upper_bound + lower_bound[::-1],
                     fill='toself',
                     fillcolor=color_rgba_str,
+                    mode='lines',
                     line=dict(width=0),
                     hoverinfo="skip",
                     showlegend=False,
-                    yaxis="y2",
-                    name=f"{score_name} Std" # Optional: hidden in legend
+                    yaxis="y2" # secondary axis
                 ))
 
             sec_traces_added = True
@@ -368,11 +368,11 @@ def create_performance_plot(measures: dict[str, list[float]],
                     y=upper_bound + lower_bound[::-1],
                     fill='toself',
                     fillcolor=color_rgba_str,
+                    mode='lines',
                     line=dict(width=0),
                     hoverinfo="skip",
                     showlegend=False,
-                    yaxis="y1", # Explicitly assign to primary
-                    name=f"{score_name} Std" # Optional: hidden in legend
+                    yaxis="y1" # Explicitly assign to primary
                 ))
 
         color_idx += 1
@@ -382,7 +382,7 @@ def create_performance_plot(measures: dict[str, list[float]],
         "title": 28,
         "axis": 24,
         "legend": 24,
-        "tick": 18  # Optional: tick labels
+        "tick": 18
     }
 
     layout_updates = {
@@ -414,10 +414,7 @@ def create_performance_plot(measures: dict[str, list[float]],
             "y": 1.02,
             "xanchor": "right",
             "x": 1,
-            "font": {"size": font_sizes["legend"], "family": "Arial, sans-serif"},
-            #"bgcolor": "rgba(255,255,255,0.7)",  # Optional: semi-transparent background
-            #"bordercolor": "rgba(0,0,0,0.1)",    # Optional: light border
-            #"borderwidth": 1                     # Optional: border thickness
+            "font": {"size": font_sizes["legend"], "family": "Arial, sans-serif"}
         }
     }
 
@@ -435,16 +432,9 @@ def create_performance_plot(measures: dict[str, list[float]],
             "showgrid": False,
             "zeroline": False
         }
-        
-        # Adjust ranges to ensure visibility if needed (optional, Plotly auto-scales well)
-        # If you want to force specific limits, uncomment below:
-        # layout_updates["yaxis"]["range"] = [-1.1, 1.1] 
-
     fig.update_layout(**layout_updates)
     
-    # Save
-    try:
-        
+    try:    
         fig.write_image(f"{filename}.png")
         print(f"Saved plot: {filename}.png")
     except Exception as e:
@@ -695,7 +685,7 @@ def run(config, min_iter=0, max_iter=-1):
     print(df.columns)
     print(df)
     # aggregated plot (mean + std over minP,maxP,iter)
-    title_str = f"Performance and Bias Correlation (lr={config['learning_rate']}, wiki={config['add_wiki_data']}, batch_size={config['batch_size']})"
+    title_str = f"Performance and Bias Correlation" # (lr={config['learning_rate']}, wiki={config['add_wiki_data']}, batch_size={config['batch_size']})"
     agg_plot_filename = config['results_dir']+'/plot_agg'
 
     # get mean + std of all scores over minP, maxP and iter (once with R test/val and once with R per attribute)
@@ -709,8 +699,15 @@ def run(config, min_iter=0, max_iter=-1):
 
         create_performance_plot(scores_dict, errors_dict, title=title_str, filename=filename)
 
+        for k, v in scores_dict.items():
+            print(k)
+            print(f"{k} pretrained\t {v[0]:.2f} \pm {errors_dict[k][0]:.3f}")
+            print(f"{k} final \t\t {v[-1]:.2f} \pm {errors_dict[k][-1]:.3f}")
+
     r_val = []
     r_test = []
+    p_val = []
+    p_test = []
     for i in range(len(df)):
         freq = list(df.loc[i, 'frequencies'])
         priors_val = list(df.loc[i, 'priors val'])
@@ -722,17 +719,24 @@ def run(config, min_iter=0, max_iter=-1):
         print("test: ", res_test)
         r_val.append(res_val.statistic)
         r_test.append(res_test.statistic)
+        p_val.append(res_val.pvalue)
+        p_test.append(res_test.pvalue)
 
     print(f"val: {np.mean(r_val):0.3f} +/- {np.std(r_val):0.3f}")
     print(f"test: {np.mean(r_test):0.3f} +/- {np.std(r_test):0.3f}")
+    print("pvalues (val, test):")
+    print(p_val)
+    print(p_test)
 
-    freq = np.mean(np.stack(df['frequencies']), axis=0)
+    print("freq, prior val, prior test:")
+    freq = np.mean(np.stack(df['frequencies']), axis=0)/len(target_words)
     priorv = np.mean(np.stack(df['priors val']), axis=0)
     priort = np.mean(np.stack(df['priors test']), axis=0)
 
     print(freq)
     print(priorv)
     print(priort)
+
 
     print("done")
 
